@@ -1,0 +1,31 @@
+{
+  "name": "proxy",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "proxy": "./src/cli/index.ts"
+  },
+  "exports": {
+    "./client": "./src/client/index.ts"
+  },
+  "scripts": {
+    "proxy": "bun ./src/cli/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint . && ts-lint-effect"
+  },
+  "dependencies": {
+    "@effect/platform-bun": "4.0.6",
+    "effect": "4.0.6",
+    "effect-lib": "github:laroccacharly/effect-lib#v0.13.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "oxlint": "^1.90.0",
+    "oxlint-tsgolint": "^7.0.2005",
+    "ts-lint": "github:laroccacharly/ts-lint#v0.6.0",
+    "typescript": "^7.0.2"
+  }
+}
