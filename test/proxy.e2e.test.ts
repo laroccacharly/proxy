@@ -6,6 +6,8 @@ import { Effect } from "effect"
 import { ProxyClient } from "../src/client/index.ts"
 
 const API_KEY = "dummy-openai-key"
+// The tests below make this many requests before the rate-limit test, which then goes over.
+const IMAGES_PER_HOUR = 2
 const FAKE_PNG = "fake-png-bytes"
 
 interface ReceivedRequest {
@@ -63,7 +65,7 @@ const port = freePort()
 const proxyUrl = `http://127.0.0.1:${port}`
 const configHome = mkdtempSync(join(tmpdir(), "proxy-e2e-"))
 mkdirSync(join(configHome, "proxy"))
-writeFileSync(join(configHome, "proxy", "config.json"), JSON.stringify({ port, openaiOrigin: fakeOpenAI.url.origin }))
+writeFileSync(join(configHome, "proxy", "config.json"), JSON.stringify({ port, openaiOrigin: fakeOpenAI.url.origin, imagesPerHour: IMAGES_PER_HOUR }))
 // The dummy key comes from the environment, which the server reads before the keyring.
 const server = Bun.spawn(["bun", join(import.meta.dir, "..", "src", "cli", "index.ts"), "server", "serve"], {
   env: { ...process.env, XDG_CONFIG_HOME: configHome, OPENAI_API_KEY: API_KEY },
@@ -97,4 +99,13 @@ test("an upstream failure reaches the client as a ProxyError with the api's mess
 
   expect(error._tag).toBe("ProxyError")
   expect(error.message).toContain("upstream exploded")
+})
+
+test("past imagesPerHour the client gets RateLimited and the fake api is not called", async () => {
+  const before = received.length
+  const error = await Effect.runPromise(Effect.flip(generateImage("one too many")))
+
+  expect(error._tag).toBe("RateLimited")
+  expect(error.message).toContain(`${IMAGES_PER_HOUR} per hour`)
+  expect(received.length).toBe(before)
 })

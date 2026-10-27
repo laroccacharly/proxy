@@ -4,6 +4,9 @@ import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/ht
 // Any failure behind the proxy: a missing api key, an upstream error, or the server being unreachable.
 export class ProxyError extends Schema.TaggedError<ProxyError>()("ProxyError", { message: Schema.String }, { httpApiStatus: 502 }) {}
 
+// The server refused the request to cap spending on the upstream api.
+export class RateLimited extends Schema.TaggedError<RateLimited>()("RateLimited", { message: Schema.String }, { httpApiStatus: 429 }) {}
+
 // Mirrors ImageOptions from effect-lib/openai-image.
 export const ImageOptions = Schema.Struct({
   aspect: Schema.optionalKey(Schema.Literals(["auto", "1:1", "16:9", "9:16", "3:2", "2:3"])),
@@ -23,7 +26,7 @@ export const ImagesGroup = HttpApiGroup.make("images").add(
   HttpApiEndpoint.post("generate", "/images/generate", {
     payload: Schema.Struct({ prompt: Schema.String, options: ImageOptions }),
     success: Png,
-    error: ProxyError,
+    error: [ProxyError, RateLimited],
   })
 )
 

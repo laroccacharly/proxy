@@ -2,16 +2,16 @@ import { BunFileSystem } from "@effect/platform-bun"
 import { Context, Effect, Layer } from "effect"
 import { FetchHttpClient } from "effect/http"
 import { HttpApiClient } from "effect/http-api"
-import { Api, ImageOptions, ProxyError } from "../api.ts"
+import { Api, ImageOptions, ProxyError, RateLimited } from "../api.ts"
 import { loadConfig } from "../config.ts"
 
-export { ImageOptions, ProxyError }
+export { ImageOptions, ProxyError, RateLimited }
 
 export class ProxyClient extends Context.Service<
   ProxyClient,
   {
     // A new PNG from the prompt, generated with the server's OpenAI key.
-    readonly generateImage: (prompt: string, options?: ImageOptions) => Effect.Effect<Uint8Array, ProxyError>
+    readonly generateImage: (prompt: string, options?: ImageOptions) => Effect.Effect<Uint8Array, ProxyError | RateLimited>
   }
 >()("proxy/ProxyClient") {
   static readonly layer = (options: ProxyClientOptions = {}): Layer.Layer<ProxyClient, ProxyError> => Layer.effect(ProxyClient, make(options)).pipe(Layer.provide(FetchHttpClient.layer))

@@ -6,6 +6,7 @@ import * as JsonStore from "effect-lib/json-store"
 export const DEFAULT_PORT = 7300
 // Tailscale keys serve configs by HTTPS port, so the proxy gets its own instead of 443.
 export const DEFAULT_TAILSCALE_PORT = 8443
+export const DEFAULT_IMAGES_PER_HOUR = 30
 
 export const Config = Schema.Struct({
   // Local port the server listens on, on 127.0.0.1 only.
@@ -16,6 +17,8 @@ export const Config = Schema.Struct({
   url: Schema.optionalKey(Schema.String),
   // OpenAI API origin the server calls, for a compatible API or a fake one in tests.
   openaiOrigin: Schema.optionalKey(Schema.String),
+  // Images the server generates per hour across all clients, to cap OpenAI spending.
+  imagesPerHour: Schema.optionalKey(Schema.Int),
 })
 
 export type Config = typeof Config.Type
