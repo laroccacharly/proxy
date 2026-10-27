@@ -13,6 +13,7 @@
   "scripts": {
     "proxy": "bun ./src/cli/index.ts",
     "test": "bun test",
+    "diagram": "bun ./scripts/diagram.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint . && ts-lint-effect"
   },
@@ -22,6 +23,7 @@
     "effect-lib": "github:laroccacharly/effect-lib#v0.13.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "^1.4.4",
     "oxlint": "^1.90.0",
     "oxlint-tsgolint": "^7.0.2005",
