@@ -98,7 +98,7 @@ const zones = (y: number, height: number) => {
 }
 
 const typedProxy = (top: number) => {
-  text("Typed proxy: one endpoint per API", 30, top, 34, GREEN)
+  text("Typed proxy: one endpoint per operation", 30, top, 34, GREEN)
   zones(top + 60, 380)
   const y = top + 130
   const agent = box("Agent\nclient.genImage(prompt)", 60, y, 340, BOX_HEIGHT)
@@ -149,13 +149,18 @@ const agentVault = (top: number) => {
   upInto(secrets, rules, KEY)
   arrow(rules.x + rules.width, rules.y + rules.height - 15, noMatch.x + noMatch.width / 2, noMatch.y, { color: GRAY, dashed: true })
 
-  // Any host the agent names can receive a key, so the last hop fans out.
-  const hosts = ["api.openai.com", "api.github.com", "api.stripe.com", "…any host"]
+  // Every host with a rule can receive a key; any other host is forwarded without one.
+  const hosts = ["api.openai.com", "api.github.com", "api.stripe.com", "…any other host"]
   const hostHeight = 62
   const hostStep = 80
   const hostsTop = y + BOX_HEIGHT / 2 - (hosts.length * hostStep - (hostStep - hostHeight)) / 2 + 40
   hosts.forEach((host, index) => {
-    const target = box(host, NET_ZONE.x + 60, hostsTop + index * hostStep, 260, hostHeight, { size: 20, dashed: index === hosts.length - 1 })
+    const unmatched = index === hosts.length - 1
+    const target = box(host, NET_ZONE.x + 60, hostsTop + index * hostStep, 260, hostHeight, { size: 20, dashed: unmatched })
+    if (unmatched) {
+      arrow(...rightOf(noMatch), ...leftOf(target), { color: GRAY, dashed: true })
+      return
+    }
     arrow(...rightOf(rules, index * 12 - 20), ...leftOf(target), KEY)
   })
   text("+ API key", rules.x + rules.width + 40, y - 30, 18, RED)
@@ -175,9 +180,9 @@ const legend = (y: number) => {
 const TRADE_OFFS: ReadonlyArray<readonly [string, string, string]> = [
   ["Flexibility", "Any SDK, CLI or API, added by config", "Typed client only; each API is server code"],
   ["HTTPS", "Impersonates every site: own CA, fake certs", "Two ordinary connections, real certs"],
-  ["What can go wrong", "Rules too broad, unknown hosts allowed", "Little to configure, so little to get wrong"],
-  ["Lines of code", "~32,700 Go", "~250 TypeScript"],
-  ["Best for", "Teams, many APIs, tools you don't control", "One person, a few APIs, your own code"],
+  ["What can go wrong", "Broad rules: key sent to any path on a host", "Bugs in server code, caught by tests"],
+  ["Lines of code", "~36,500 Go", "~300 TypeScript"],
+  ["Best for", "Many APIs, tools you can't change (CLIs, SDKs)", "A few vetted operations for specific use cases"],
 ]
 
 const tradeOffs = (top: number) => {
