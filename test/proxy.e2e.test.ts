@@ -65,7 +65,7 @@ const port = freePort()
 const proxyUrl = `http://127.0.0.1:${port}`
 const configHome = mkdtempSync(join(tmpdir(), "proxy-e2e-"))
 mkdirSync(join(configHome, "proxy"))
-writeFileSync(join(configHome, "proxy", "config.json"), JSON.stringify({ port, openaiOrigin: fakeOpenAI.url.origin, imagesPerHour: IMAGES_PER_HOUR }))
+writeFileSync(join(configHome, "proxy", "config.json"), JSON.stringify({ serverPort: port, openaiOrigin: fakeOpenAI.url.origin, imagesPerHour: IMAGES_PER_HOUR }))
 // The dummy key comes from the environment, which the server reads before the keyring.
 const server = Bun.spawn(["bun", join(import.meta.dir, "..", "src", "cli", "index.ts"), "server", "serve"], {
   env: { ...process.env, XDG_CONFIG_HOME: configHome, OPENAI_API_KEY: API_KEY },

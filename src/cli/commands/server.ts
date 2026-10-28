@@ -1,16 +1,16 @@
 import { Effect, Layer, Option } from "effect"
 import { Command, Flag } from "effect/cli"
-import { DEFAULT_PORT, loadConfig } from "../../config.ts"
+import { DEFAULT_SERVER_PORT, loadConfig } from "../../config.ts"
 import { serverLayer } from "../../server/serve.ts"
 
-const portFlag = Flag.Int("port").pipe(Flag.withAlias("p"), Flag.withDescription("Local port to listen on (overrides config)"))
+const serverPortFlag = Flag.Int("server-port").pipe(Flag.withAlias("p"), Flag.withDescription("Local port to listen on (overrides config)"))
 
 const serveCommand = Command.make(
   "serve",
-  { port: Flag.optional(portFlag) },
-  Effect.fn("serveCommand")(function* serveCommand({ port }) {
+  { serverPort: Flag.optional(serverPortFlag) },
+  Effect.fn("serveCommand")(function* serveCommand({ serverPort }) {
     const config = yield* loadConfig
-    const resolved = Option.getOrElse(port, () => config.port ?? DEFAULT_PORT)
+    const resolved = Option.getOrElse(serverPort, () => config.serverPort ?? DEFAULT_SERVER_PORT)
     yield* Effect.logInfo(`Serving proxy at http://127.0.0.1:${resolved}`)
     return yield* Layer.launch(serverLayer(resolved, config))
   })

@@ -11,7 +11,7 @@ Plain http request/response, no streaming.
 # Design 
 ## Config 
 use json-store from effect-lib 
-port for the service 
+serverPort for the service, tailscalePort for tailscale serve 
 
 ## Auth 
 No client auth: being on the tailnet is the auth. 
@@ -22,7 +22,7 @@ Api keys stored in the key ring, using credentials from effect-lib
 proxy auth login, logout, status, to manage api keys 
 proxy server serve, for foreground 
 proxy service install, etc. use systemd service from effect-lib
-proxy tailscale setup, status, to wire the service behind tailscale serve 
+proxy tailscale install, status, url, uninstall, to wire the service behind tailscale serve, from effect-lib tailscale 
 
 ## On client 
 import the effect client in typescript, and call typed methods. 
