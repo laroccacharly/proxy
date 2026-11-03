@@ -52,5 +52,4 @@ test/worker.test.ts runs the Worker's HttpApi in Bun over @effect/sql-sqlite-bun
 `bun run test:live` (test/live/worker.live.ts, never run by `bun test`) tests the running Worker at PROXY_URL with
 PROXY_ADMIN_API_KEY, from the environment or the keyring: /health has this checkout's version, the auth cases but the
 rate limit, and one real push. Its keys are deleted at the end. Images are not tested live.
-Before a deploy, smoke-test the real Worker under `alchemy dev`, in a temp directory symlinked to the project, with
-DEV_PORT and the secrets set; stop it with SIGINT to its process group.
+Don't smoke-test under `alchemy dev`. Test after deploying, on the real Worker: `bun run test:live`.
