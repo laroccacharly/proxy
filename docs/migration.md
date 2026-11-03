@@ -42,7 +42,8 @@ Plain HTTP request and response, no streaming, as before.
 - **Global rate limit, as in bench.** One `Cloudflare.RateLimit` binding with a constant key, so every consumer
   shares one budget, which bounds the upstream cost. `DISABLE_RATE_LIMITER=true` under `alchemy dev` only. Over
   the limit: 429 `RateLimited`. Per-key limits can come later.
-- **Deploy with alchemy through effect-lib's `Deploy.run`.** `bun run deploy login | plan | deploy | status`. Every
+- **Deploy with alchemy through effect-lib's `Deploy.run`.** `bun run deploy login | plan | destroy | auth status`, and
+  `bun run deploy` itself. Every
   resource gets an explicit name, and alchemy carries bench's patch that rejects unnamed ones, so
   `alchemy deploy --adopt` finds them all.
 - **No logging of contents.** Requests are logged with method, path and key name, never a message or a prompt.
@@ -155,11 +156,13 @@ ProxyClient.layer({ url, apiKey })      // explicit, for tests
 client.notify(message, { title })       // Effect<void, ProxyError | RateLimited | Unauthorized | Forbidden>
 ```
 
-The json-store `url` setting is dropped. `PROXY_URL` replaces it.
+The json-store `url` setting is dropped. `PROXY_URL` replaces it. Until phase 6, `test/proxy.e2e.test.ts` drives the Pi
+server through its own `Api`'s typed client, since `ProxyClient` is on `ProxyApi` now.
 
 CLI, with the admin commands reading `PROXY_URL` and `PROXY_ADMIN_API_KEY`:
 
-- `proxy login | logout | status`: stores `PROXY_URL` and `PROXY_API_KEY` on a consumer machine
+- `proxy login` and `proxy auth login | logout | status`: stores `PROXY_URL` and `PROXY_API_KEY` on a consumer machine,
+  with effect-lib's `Credentials.make(...).commands` unchanged
 - `proxy keys create <name> --scope push [--scope images]`: prints the new `PROXY_API_KEY` once, plain on stdout,
   so it pipes into `cpass`
 - `proxy keys list`: ids, names, scopes, last use, revoked ones marked
@@ -175,7 +178,8 @@ Deploy (`src/deploy/deploy.ts`, run as `bun run deploy`):
 Deploy.run({ app: "proxy", secrets: [ProxyUrl, ProxyAdminApiKey, Push.AppToken, Push.UserKey] }, { version })
 ```
 
-`bun run deploy login` stores those in the keyring once. The Worker gets them as env bindings, with the secrets as
+`bun run deploy login` stores those in the keyring once, with the Cloudflare ones every app shares
+(`WORKER_CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`). The Worker gets them as env bindings, with the secrets as
 secret bindings.
 
 ## Phase 5: OpenAI images

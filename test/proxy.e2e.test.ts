@@ -3,7 +3,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
-import { ProxyClient } from "../src/client/index.ts"
+import { FetchHttpClient } from "effect/http"
+import { HttpApiClient } from "effect/http-api"
+import { Api } from "../src/api.ts"
 
 const API_KEY = "dummy-openai-key"
 // The tests below make this many requests before the rate-limit test, which then goes over.
@@ -84,8 +86,12 @@ afterAll(async () => {
   rmSync(configHome, { recursive: true, force: true })
 })
 
+// The Pi server's own typed client, until phase 6 of docs/migration.md removes both.
 const generateImage = (prompt: string) =>
-  ProxyClient.use((client) => client.generateImage(prompt, { aspect: "1:1" })).pipe(Effect.provide(ProxyClient.layer({ url: proxyUrl })))
+  HttpApiClient.make(Api, { baseUrl: proxyUrl }).pipe(
+    Effect.flatMap((client) => client.images.generate({ payload: { prompt, options: { aspect: "1:1" } } })),
+    Effect.provide(FetchHttpClient.layer)
+  )
 
 test("the client gets the fake api's image, with the api key set by the proxy server", async () => {
   const png = await Effect.runPromise(generateImage("a cat"))

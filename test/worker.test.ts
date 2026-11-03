@@ -11,6 +11,7 @@ import { FetchHttpClient, type HttpClient, HttpRouter, HttpServer } from "effect
 import { HttpApiClient } from "effect/http-api"
 import { SqlClient } from "effect/sql"
 import { ProxyApi } from "../src/api.ts"
+import { ProxyClient } from "../src/client/index.ts"
 import { rateLimitGuard, routes } from "../src/worker/http.ts"
 
 const ADMIN_API_KEY = "test-proxy-admin-api-key"
@@ -215,35 +216,58 @@ describe("/api/push", () => {
   })
 })
 
-describe("POST /api/push", () => {
-  const notify = (credentials: { readonly key?: string; readonly admin?: string }, payload: { readonly message: string; readonly title?: string }) =>
-    Effect.flatMap(clientOf(worker, credentials), (client) => client.push.notify({ payload }))
+describe("ProxyClient.notify", () => {
+  const notify = (apiKey: string, message: string, options?: { readonly title?: string }) =>
+    ProxyClient.use((client) => client.notify(message, options)).pipe(Effect.provide(ProxyClient.layer({ url: worker.url, apiKey })))
+
+  const notifyOutcome = (apiKey: string) => Effect.runPromise(notify(apiKey, "hi").pipe(Effect.as("ok"), Effect.catch((error) => Effect.succeed(error._tag))))
 
   test("the fake Pushover gets the message, the title, and the Worker's token and user key", async () => {
     const key = await createKey(worker, "laptop", ["push"])
     fakePushover.received = []
-    await run(notify({ key }, { message: "build done", title: "ci" }))
+    await Effect.runPromise(notify(key, "build done", { title: "ci" }))
     expect(fakePushover.received).toEqual([{ token: PUSH_APP_TOKEN, user: PUSH_USER_KEY, message: "build done", title: "ci" }])
   })
 
-  test("no key, a wrong key, the admin key and a key without the push scope reach no Pushover", async () => {
-    const painter = await createKey(worker, "painter", ["images"])
+  test("layer() reads PROXY_URL and PROXY_API_KEY from the environment", async () => {
+    const key = await createKey(worker, "agent", ["push"])
     fakePushover.received = []
-    expect(await outcome(notify({}, { message: "hi" }))).toBe("Unauthorized")
-    expect(await outcome(notify({ key: "pxy_not-a-key" }, { message: "hi" }))).toBe("Unauthorized")
-    expect(await outcome(notify({ key: ADMIN_API_KEY }, { message: "hi" }))).toBe("Unauthorized")
-    expect(await outcome(notify({ key: painter }, { message: "hi" }))).toBe("Forbidden")
+    await Effect.runPromise(
+      ProxyClient.use((client) => client.notify("from the env")).pipe(
+        Effect.provide(ProxyClient.layer().pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ PROXY_URL: worker.url, PROXY_API_KEY: key })))))
+      )
+    )
+    expect(fakePushover.received.map(({ message }) => message)).toEqual(["from the env"])
+  })
+
+  test("a wrong key, a revoked key and the admin key get Unauthorized, a key without the push scope Forbidden, and none reach Pushover", async () => {
+    const painter = await createKey(worker, "painter", ["images"])
+    const revoked = await createKey(worker, "old", ["push"])
+    const { id } = await run(checkPush(worker, { key: revoked }))
+    await run(Effect.flatMap(clientOf(worker, { admin: ADMIN_API_KEY }), (client) => client.apiKeys.revoke({ params: { id } })))
+    fakePushover.received = []
+    expect(await notifyOutcome("pxy_not-a-key")).toBe("Unauthorized")
+    expect(await notifyOutcome(revoked)).toBe("Unauthorized")
+    expect(await notifyOutcome(ADMIN_API_KEY)).toBe("Unauthorized")
+    expect(await notifyOutcome(painter)).toBe("Forbidden")
     expect(fakePushover.received).toEqual([])
   })
 
   test("Pushover answering status 0 is a ProxyError with its reasons", async () => {
     const key = await createKey(worker, "laptop", ["push"])
     fakePushover.rejecting = true
-    const error = await run(Effect.flip(notify({ key }, { message: "hi" }))).finally(() => {
+    const error = await Effect.runPromise(Effect.flip(notify(key, "hi"))).finally(() => {
       fakePushover.rejecting = false
     })
     expect(error._tag).toBe("ProxyError")
     expect(error.message).toContain("application token is invalid")
+  })
+
+  test("an unreachable Worker is a ProxyError", async () => {
+    const error = await Effect.runPromise(
+      Effect.flip(ProxyClient.use((client) => client.notify("hi")).pipe(Effect.provide(ProxyClient.layer({ url: "http://127.0.0.1:1", apiKey: "pxy_x" }))))
+    )
+    expect(error._tag).toBe("ProxyError")
   })
 })
 

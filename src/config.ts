@@ -14,8 +14,6 @@ export const Config = Schema.Struct({
   serverPort: Schema.optionalKey(Schema.Int),
   // HTTPS port tailscale serve publishes the server on.
   tailscalePort: Schema.optionalKey(TailscalePort),
-  // Where clients reach the server, e.g. https://pi.tailnet.ts.net:8445.
-  url: Schema.optionalKey(Schema.String),
   // OpenAI API origin the server calls, for a compatible API or a fake one in tests.
   openaiOrigin: Schema.optionalKey(Schema.String),
   // Images the server generates per hour across all clients, to cap OpenAI spending.

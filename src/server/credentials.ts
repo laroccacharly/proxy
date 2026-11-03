@@ -1,7 +1,4 @@
-import { bunKeyring, make } from "effect-lib/credentials"
-import { ApiKey as OpenAIApiKey } from "effect-lib/openai-image"
+import { bunKeyring, layer } from "effect-lib/credentials"
 
-// Every api key the server sets on upstream requests.
-export const auth = make([OpenAIApiKey])
-
-export const keyringLayer = auth.layer(bunKeyring())
+// The OS keyring the Pi server reads OPENAI_API_KEY from, after the environment.
+export const keyringLayer = layer(bunKeyring())

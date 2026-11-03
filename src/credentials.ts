@@ -13,3 +13,9 @@ export const ProxyUrl = Credentials.secret("PROXY_URL", { label: "proxy Worker U
 
 // Creates, lists and revokes the consumer keys; it calls no upstream api.
 export const ProxyAdminApiKey = Credentials.secret("PROXY_ADMIN_API_KEY", { label: "proxy admin API key" })
+
+// One consumer's key, from `proxy keys create`: PROXY_API_KEY, else the OS keyring. It calls the upstream apis only.
+export const ProxyApiKey = Credentials.secret("PROXY_API_KEY", { label: "proxy API key", schema: Schema.String.check(Schema.isStartingWith("pxy_")) })
+
+// `proxy login` and `proxy auth login | logout | status`, on a consumer machine.
+export const consumerCredentials = Credentials.make([ProxyUrl, ProxyApiKey])
