@@ -52,5 +52,18 @@ export class PushRoutes extends HttpApiGroup.make("push")
   .middleware(ApiKeyAuth.Bearer)
   .annotate(ApiKeyAuth.Scope, "push") {}
 
+// Needs a key with the images scope; shares the global rate limit with push.
+export class ImagesRoutes extends HttpApiGroup.make("images")
+  .add(
+    HttpApiEndpoint.post("generate", "/api/images/generate", {
+      payload: Schema.Struct({ prompt: Schema.String, options: ImageOptions }),
+      success: Png,
+      error: [ProxyError, RateLimited],
+    })
+  )
+  .middleware(RateLimitGuard)
+  .middleware(ApiKeyAuth.Bearer)
+  .annotate(ApiKeyAuth.Scope, "images") {}
+
 // The Worker's API: /health with no key, the admin key routes, then one set of routes per upstream api.
-export class ProxyApi extends HttpApi.make("proxy").add(HealthGroup).add(ApiKeyRoutes).add(PushRoutes) {}
+export class ProxyApi extends HttpApi.make("proxy").add(HealthGroup).add(ApiKeyRoutes).add(PushRoutes).add(ImagesRoutes) {}

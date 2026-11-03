@@ -189,6 +189,10 @@ tests. It shares the global rate limit. If images need a tighter cap than pushes
 binding of its own, still global. Image generation can take up to a minute. Waiting on fetch doesn't count against the
 Worker's CPU time, but check it against the real API before deleting the Pi server.
 
+Done as `ImagesRoutes` on `ProxyApi`, with `OpenAIImage.layer` behind `Credentials.envOnlyLayer` like `Push`, and
+`OpenAIImage.ApiKey` added to the deploy's secrets. Images share the one global limit for now (30 a minute); the Pi's
+30 an hour for images alone is gone with its in-memory `RateLimiter`.
+
 ## Phase 6: remove the Pi
 
 - Delete `src/server/`, `src/cli/commands/{server,service,tailscale}.ts`, the json-store config and the

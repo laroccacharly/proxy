@@ -3,8 +3,9 @@
 // the upstreams' credentials, under the same names as every other app that uses them.
 
 import * as Deploy from "effect-lib/deploy"
+import * as OpenAIImage from "effect-lib/openai-image"
 import * as Push from "effect-lib/push"
 import { ProxyAdminApiKey, ProxyUrl } from "../credentials.ts"
 import { version } from "../version.ts"
 
-Deploy.run({ app: "proxy", secrets: [ProxyUrl, ProxyAdminApiKey, Push.AppToken, Push.UserKey] }, { version })
+Deploy.run({ app: "proxy", secrets: [ProxyUrl, ProxyAdminApiKey, Push.AppToken, Push.UserKey, OpenAIImage.ApiKey] }, { version })

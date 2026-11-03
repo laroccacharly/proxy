@@ -1,5 +1,6 @@
 // The Worker's HttpApi in Bun, over SQLite in memory with the tables from ./migrations, behind a real port so the
-// typed client and the `proxy keys` command reach it as they would the Worker. A fake Pushover stands in upstream.
+// typed client and the `proxy keys` command reach it as they would the Worker. A fake Pushover and a fake OpenAI
+// stand in upstream.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
@@ -17,6 +18,8 @@ import { rateLimitGuard, routes } from "../src/worker/http.ts"
 const ADMIN_API_KEY = "test-proxy-admin-api-key"
 const PUSH_APP_TOKEN = "test-push-app-token"
 const PUSH_USER_KEY = "test-push-user-key"
+const OPENAI_API_KEY = "test-openai-api-key"
+const FAKE_PNG = "fake-png-bytes"
 const projectRoot = join(import.meta.dir, "..")
 const migrationsDir = join(projectRoot, "migrations")
 
@@ -57,12 +60,35 @@ const pushover = Bun.serve({
   },
 })
 
+// Answers like OpenAI Images: a base64 PNG, or a 500 for the prompt "fail"; keeps the bearer and the prompt it gets.
+const fakeOpenAI = {
+  received: [] as Array<{ readonly authorization: string | null; readonly prompt: string; readonly size: string }>,
+}
+const openai = Bun.serve({
+  port: 0,
+  hostname: "127.0.0.1",
+  routes: {
+    "/v1/images/generations": {
+      POST: async (request) => {
+        const body = (await request.json()) as { prompt: string; size: string }
+        fakeOpenAI.received.push({ authorization: request.headers.get("authorization"), prompt: body.prompt, size: body.size })
+        if (body.prompt === "fail") {
+          return Response.json({ error: { message: "upstream exploded" } }, { status: 500 })
+        }
+        return Response.json({ data: [{ b64_json: Buffer.from(FAKE_PNG).toString("base64") }] })
+      },
+    },
+  },
+})
+
 // The Worker's env, as `alchemy dev` would set it.
 const workerEnv = {
   PROXY_ADMIN_API_KEY: ADMIN_API_KEY,
   PUSH_APP_TOKEN,
   PUSH_USER_KEY,
   PUSH_ORIGIN: pushover.url.origin,
+  OPENAI_API_KEY,
+  OPENAI_ORIGIN: openai.url.origin,
 }
 
 interface TestWorker {
@@ -143,6 +169,7 @@ beforeAll(() => {
 afterAll(async () => {
   await worker.stop()
   await pushover.stop(true)
+  await openai.stop(true)
 })
 
 test("/health answers with no key", async () => {
@@ -268,6 +295,34 @@ describe("ProxyClient.notify", () => {
       Effect.flip(ProxyClient.use((client) => client.notify("hi")).pipe(Effect.provide(ProxyClient.layer({ url: "http://127.0.0.1:1", apiKey: "pxy_x" }))))
     )
     expect(error._tag).toBe("ProxyError")
+  })
+})
+
+describe("ProxyClient.generateImage", () => {
+  const generateImage = (apiKey: string, prompt: string) =>
+    ProxyClient.use((client) => client.generateImage(prompt, { aspect: "1:1" })).pipe(Effect.provide(ProxyClient.layer({ url: worker.url, apiKey })))
+
+  test("the client gets the fake OpenAI's PNG, generated with the Worker's key", async () => {
+    const key = await createKey(worker, "painter", ["images"])
+    fakeOpenAI.received = []
+    const png = await Effect.runPromise(generateImage(key, "a cat"))
+    expect(new TextDecoder().decode(png)).toBe(FAKE_PNG)
+    expect(fakeOpenAI.received).toEqual([{ authorization: `Bearer ${OPENAI_API_KEY}`, prompt: "a cat", size: "1024x1024" }])
+  })
+
+  test("an upstream failure is a ProxyError with OpenAI's message", async () => {
+    const key = await createKey(worker, "painter", ["images"])
+    const error = await Effect.runPromise(Effect.flip(generateImage(key, "fail")))
+    expect(error._tag).toBe("ProxyError")
+    expect(error.message).toContain("upstream exploded")
+  })
+
+  test("a key with only the push scope gets Forbidden and reaches no OpenAI", async () => {
+    const key = await createKey(worker, "laptop", ["push"])
+    fakeOpenAI.received = []
+    const error = await Effect.runPromise(Effect.flip(generateImage(key, "a cat")))
+    expect(error._tag).toBe("Forbidden")
+    expect(fakeOpenAI.received).toEqual([])
   })
 })
 

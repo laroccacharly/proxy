@@ -20,14 +20,19 @@ const devEnv = (isDev: boolean): Record<string, string> => {
   return {}
 }
 
-// The upstreams' secrets, from the environment, required under `alchemy dev` too. PUSH_ORIGIN is optional: the tests
-// point it at a fake Pushover.
+// `{ [name]: value }` when the variable is set, else nothing.
+const optionalEnv = (name: string) =>
+  Config.option(Config.String(name)).pipe(Config.map(Option.match({ onNone: () => ({}), onSome: (value) => ({ [name]: value }) })))
+
+// The upstreams' secrets, from the environment, required under `alchemy dev` too. PUSH_ORIGIN and OPENAI_ORIGIN are
+// optional: the tests point them at a fake Pushover and a fake OpenAI.
 const secretsEnv = Effect.gen(function* secretsEnv() {
-  const pushOrigin = yield* Config.option(Config.String("PUSH_ORIGIN"))
   return {
     PUSH_APP_TOKEN: yield* Config.Redacted("PUSH_APP_TOKEN"),
     PUSH_USER_KEY: yield* Config.Redacted("PUSH_USER_KEY"),
-    ...Option.match(pushOrigin, { onNone: () => ({}), onSome: (origin) => ({ PUSH_ORIGIN: origin }) }),
+    OPENAI_API_KEY: yield* Config.Redacted("OPENAI_API_KEY"),
+    ...(yield* optionalEnv("PUSH_ORIGIN")),
+    ...(yield* optionalEnv("OPENAI_ORIGIN")),
   }
 })
 

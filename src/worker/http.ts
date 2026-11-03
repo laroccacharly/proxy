@@ -3,6 +3,7 @@ import { Config, Effect, Layer } from "effect"
 import { FetchHttpClient, HttpServerError, type HttpServerResponse } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 import * as Credentials from "effect-lib/credentials"
+import * as OpenAIImage from "effect-lib/openai-image"
 import * as Push from "effect-lib/push"
 import { ProxyApi, ProxyError, RateLimited, RateLimitGuard } from "../api.ts"
 
@@ -42,17 +43,28 @@ const pushHandlers = HttpApiBuilder.group(ProxyApi, "push", (handlers) =>
   })
 )
 
-// The upstreams, with their credentials from the Worker's env only; PUSH_ORIGIN points Push elsewhere, as tests do.
+const imagesHandlers = HttpApiBuilder.group(ProxyApi, "images", (handlers) =>
+  Effect.gen(function* imagesHandlers() {
+    const images = yield* OpenAIImage.OpenAIImage
+    return handlers.handle("generate", ({ payload }) =>
+      logCall("POST /api/images/generate").pipe(Effect.andThen(images.generate(payload.prompt, payload.options)), Effect.mapError(toProxyError))
+    )
+  })
+)
+
+// The upstreams, with their credentials from the Worker's env only; PUSH_ORIGIN and OPENAI_ORIGIN point them
+// elsewhere, as tests do.
 const upstreams = Layer.unwrap(
   Effect.gen(function* upstreams() {
     const pushOrigin = yield* Config.String("PUSH_ORIGIN").pipe(Config.withDefault(Push.ORIGIN))
-    return Push.layer({ origin: pushOrigin })
+    const openaiOrigin = yield* Config.String("OPENAI_ORIGIN").pipe(Config.withDefault(OpenAIImage.ORIGIN))
+    return Layer.mergeAll(Push.layer({ origin: pushOrigin }), OpenAIImage.layer({ origin: openaiOrigin }))
   })
 ).pipe(Layer.provide([Credentials.envOnlyLayer, FetchHttpClient.layer]))
 
 // ProxyApi's routes; needs the database's SqlClient, the RateLimitGuard, and PROXY_ADMIN_API_KEY and the upstreams'
 // credentials in the Config.
-export const routes = HttpApiBuilder.layer(ProxyApi).pipe(Layer.provide([healthHandlers, pushHandlers]), Layer.provide([apiKeyAuth, upstreams]))
+export const routes = HttpApiBuilder.layer(ProxyApi).pipe(Layer.provide([healthHandlers, pushHandlers, imagesHandlers]), Layer.provide([apiKeyAuth, upstreams]))
 
 // Failures the API doesn't encode itself, such as an unknown route, as responses.
 export const respondToFailures = <E, R>(handle: Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>) =>

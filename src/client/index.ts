@@ -3,10 +3,10 @@ import { Context, Effect, Layer, Option, Redacted } from "effect"
 import { FetchHttpClient } from "effect/http"
 import { HttpApiClient } from "effect/http-api"
 import * as Credentials from "effect-lib/credentials"
-import { ProxyApi, ProxyError, RateLimited } from "../api.ts"
+import { ImageOptions, ProxyApi, ProxyError, RateLimited } from "../api.ts"
 import { ProxyApiKey, ProxyUrl } from "../credentials.ts"
 
-export { Forbidden, ProxyError, RateLimited, Unauthorized }
+export { Forbidden, ImageOptions, ProxyError, RateLimited, Unauthorized }
 
 // What the Worker may refuse a call with, beside the upstream's own failure.
 export type CallError = ProxyError | RateLimited | Unauthorized | Forbidden
@@ -21,6 +21,8 @@ export class ProxyClient extends Context.Service<
   {
     // Sends a notification to the owner's phone, through the Worker's Pushover credentials.
     readonly notify: (message: string, options?: NotifyOptions) => Effect.Effect<void, CallError>
+    // A new PNG from the prompt, generated with the Worker's OpenAI key.
+    readonly generateImage: (prompt: string, options?: ImageOptions) => Effect.Effect<Uint8Array, CallError>
   }
 >()("proxy/ProxyClient") {
   // With no options, PROXY_URL and PROXY_API_KEY: the environment first, then the OS keyring (`proxy login`).
@@ -64,5 +66,11 @@ export const make = Effect.fnUntraced(function* make(options: ProxyClientOptions
       Effect.withSpan("ProxyClient.notify")
     )
 
-  return ProxyClient.of({ notify })
+  const generateImage = (prompt: string, imageOptions: ImageOptions = {}) =>
+    client.images.generate({ payload: { prompt, options: imageOptions } }).pipe(
+      Effect.catchTags({ HttpClientError: failWithProxyError, SchemaError: failWithProxyError }),
+      Effect.withSpan("ProxyClient.generateImage")
+    )
+
+  return ProxyClient.of({ notify, generateImage })
 })
