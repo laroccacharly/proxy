@@ -1,6 +1,6 @@
 # proxy
 
-A typed proxy that keeps API keys off the machines that run agents. The server holds the keys and adds them to outgoing requests; clients on the Tailscale network call typed methods such as `generateImage(prompt)` and never see a key. A simpler alternative to a generic, TLS-intercepting proxy like Infisical's Agent Vault.
+A typed proxy that keeps API keys off the machines that run agents. A Cloudflare Worker holds the keys and adds them to outgoing requests; clients, each with a scoped API key of their own, call typed methods such as `notify(message)` or `generateImage(prompt)` and never see an upstream key. A simpler alternative to a generic, TLS-intercepting proxy like Infisical's Agent Vault.
 
 ## Demo
 
@@ -9,8 +9,7 @@ A typed proxy that keeps API keys off the machines that run agents. The server h
 ## Requirements
 
 - [Bun](https://bun.sh)
-- [Tailscale](https://tailscale.com) on the server and on every client
-- Linux with systemd on the server (for example a Raspberry Pi)
+- A [Cloudflare](https://cloudflare.com) account
 
 ## Installation
 

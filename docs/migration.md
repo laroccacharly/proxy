@@ -156,8 +156,7 @@ ProxyClient.layer({ url, apiKey })      // explicit, for tests
 client.notify(message, { title })       // Effect<void, ProxyError | RateLimited | Unauthorized | Forbidden>
 ```
 
-The json-store `url` setting is dropped. `PROXY_URL` replaces it. Until phase 6, `test/proxy.e2e.test.ts` drives the Pi
-server through its own `Api`'s typed client, since `ProxyClient` is on `ProxyApi` now.
+The json-store `url` setting is dropped. `PROXY_URL` replaces it. The Pi server's test went in phase 6.
 
 CLI, with the admin commands reading `PROXY_URL` and `PROXY_ADMIN_API_KEY`:
 
@@ -197,10 +196,10 @@ Done as `ImagesRoutes` on `ProxyApi`, with `OpenAIImage.layer` behind `Credentia
 
 - Delete `src/server/`, `src/cli/commands/{server,service,tailscale}.ts`, the json-store config and the
   in-memory `RateLimiter`.
-- Stop and uninstall the systemd service and the Tailscale serve on the Pi (`proxy service uninstall`,
-  `proxy tailscale uninstall`) before deleting the code that does it.
+- No uninstall: the Pi server was never installed, so there was no systemd service or Tailscale serve to remove.
 - Rewrite `AGENTS.md` for the Worker design. Make the README requirements Bun and a Cloudflare account, and drop
-  Tailscale and systemd. Redraw or drop `docs/proxy-vs-agent-vault.png`, since it shows the tailnet.
+  Tailscale and systemd. Dropped `docs/proxy-vs-agent-vault.png`, its `scripts/diagram.ts` and `@resvg/resvg-js`, since it showed the
+  tailnet.
 
 ## Testing
 

@@ -1,38 +1,49 @@
-# proxy 
-A proxy server on a pi, and other machines in the tailscale network connect to it. 
-Server holds the api keys and sets them in the outgoing http request. 
+# proxy
+A typed proxy on a Cloudflare Worker. The Worker holds the upstream api keys and sets them in the outgoing http
+request; consumers never see one.
 
-Keys are bound to their specific api on the proxy server side. 
 Consumers import the proxy client and call typed methods for specific apis.
-Example: proxy_client.generate_image(prompt, params), no need to pass any api key
-This means the server must implement the api specific plumbing. 
+Example: `client.notify(message, { title })`, `client.generateImage(prompt, options)`.
+This means the Worker must implement the api specific plumbing, one set of routes per upstream.
 Plain http request/response, no streaming.
 
-# Design 
-## Config 
-use json-store from effect-lib 
-serverPort for the service, tailscalePort for tailscale serve 
+docs/migration.md is the plan this design came from.
 
-## Auth 
-No client auth: being on the tailnet is the auth. 
-Service listens on localhost only, exposed to the tailnet via tailscale serve. 
+# Design
+## Worker
+alchemy.run.ts deploys the Worker `proxy`, the D1 database `proxy` (migrations from ./migrations) and the RateLimit
+`API`, each named explicitly so `alchemy deploy --adopt` finds them. The domain comes from PROXY_URL.
 
-## On server 
-Api keys stored in the key ring, using credentials from effect-lib 
-proxy auth login, logout, status, to manage api keys 
-proxy server serve, for foreground 
-proxy service install, etc. use systemd service from effect-lib
-proxy tailscale install, status, url, uninstall, to wire the service behind tailscale serve, from effect-lib tailscale 
+## Auth
+Keys from api-key-auth (node_modules/api-key-auth/api-key-auth.md), stored hashed in D1. Don't hand-roll any of it.
+- PROXY_ADMIN_API_KEY: a Worker secret; only reaches /api/keys (create, list, revoke).
+- PROXY_API_KEY: one per consumer, `pxy_…`, issued by the Worker; only reaches the upstream routes.
+- Each upstream's routes are behind `ApiKeyAuth.Bearer` with their scope (`push`, `images`); a missing scope is 403.
+- One global rate limit, shared by every consumer, after the key check: 429 RateLimited.
+- migrations/ is written by `proxy keys migrations new ./migrations`. Never edit those files.
 
-## On client 
-import the effect client in typescript, and call typed methods. 
-store the server host in json-store 
+## Upstreams
+effect-lib's `push` and `openai-image`, with `Credentials.envOnlyLayer`: every upstream credential is a Worker secret
+(PUSH_APP_TOKEN, PUSH_USER_KEY, OPENAI_API_KEY). PUSH_ORIGIN and OPENAI_ORIGIN point them at fakes in tests.
+Upstream failures become `ProxyError`. Log method, path and key name, never a message or a prompt.
 
-# Testing 
-Do e2e testing here by spawning service here without tailscale. 
-- do proxy server serve on a local port
-- add a dummy api key to it 
-- spawn a fake api server that the proxy server will call  
-- make the proxy client connect to the proxy server locally 
-- make the client send a request 
-- assert that the fake api returns ok from the proxy server 
+## Deploy
+`bun run deploy` with effect-lib's `Deploy.run` (src/deploy/deploy.ts). `bun run deploy login` keeps the secrets in the
+OS keyring. Ask before deploying.
+
+## CLI
+`proxy login | auth logout | auth status`: PROXY_URL and PROXY_API_KEY on a consumer machine.
+`proxy keys create | list | revoke | migrations`: api-key-auth's keysCommand, with PROXY_URL and PROXY_ADMIN_API_KEY.
+
+## Client
+`ProxyClient.layer()` reads PROXY_URL and PROXY_API_KEY, environment first, then the keyring;
+`ProxyClient.layer({ url, apiKey })` for explicit use and tests.
+
+# Testing
+test/worker.test.ts runs the Worker's HttpApi in Bun over @effect/sql-sqlite-bun in memory, with the tables from
+./migrations, behind a real port. Fake upstreams with `Bun.serve` (Pushover, OpenAI).
+- create keys with the admin key, through the typed client and `proxy keys`
+- call the upstreams through ProxyClient; assert what the fake api got, with the Worker's credentials
+- the auth cases: no, wrong, revoked or admin key 401; missing scope 403; rate limit 429
+Before a deploy, smoke-test the real Worker under `alchemy dev`, in a temp directory symlinked to the project, with
+DEV_PORT and the secrets set; stop it with SIGINT to its process group.

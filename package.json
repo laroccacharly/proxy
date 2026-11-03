@@ -14,7 +14,6 @@
     "proxy": "bun ./src/cli/index.ts",
     "deploy": "bun ./src/deploy/deploy.ts",
     "test": "bun test",
-    "diagram": "bun ./scripts/diagram.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint . && ts-lint-effect"
   },
@@ -30,7 +29,6 @@
     "@cloudflare/workers-types": "^5.20261103.1",
     "@effect/platform-node": "4.1.2",
     "@effect/sql-sqlite-bun": "4.1.2",
-    "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "^1.4.4",
     "alchemy": "2.0.0-beta.85",
     "oxlint": "^1.90.0",
