@@ -87,7 +87,7 @@ const workerEnv = {
   PUSH_ORIGIN: pushover.url.origin,
   OPENAI_API_KEY,
   OPENAI_ORIGIN: openai.url.origin,
-  PROXY_VERSION: VERSION,
+  DEPLOY_VERSION: VERSION,
 }
 
 interface TestWorker {

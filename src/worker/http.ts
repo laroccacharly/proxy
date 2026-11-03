@@ -25,7 +25,7 @@ export const rateLimitGuard = (isWithinRateLimit: Effect.Effect<boolean>) =>
 const apiKeyAuth = ApiKeyAuth.layer(ProxyApi, { adminKey: Config.Redacted("PROXY_ADMIN_API_KEY"), prefix: "pxy_", scopes: ["push", "images"] })
 
 const healthHandlers = HttpApiBuilder.group(ProxyApi, "health", (handlers) =>
-  Effect.map(Config.String("PROXY_VERSION"), (version) => handlers.handle("check", () => Effect.succeed({ status: "ok" as const, version })))
+  Effect.map(Config.String("DEPLOY_VERSION"), (version) => handlers.handle("check", () => Effect.succeed({ status: "ok" as const, version })))
 )
 
 // An upstream's failure, or its credentials missing from the Worker's env, as the proxy's error.
@@ -64,7 +64,7 @@ const upstreams = Layer.unwrap(
   })
 ).pipe(Layer.provide([Credentials.envOnlyLayer, FetchHttpClient.layer]))
 
-// ProxyApi's routes; needs the database's SqlClient, the RateLimitGuard, and PROXY_ADMIN_API_KEY, PROXY_VERSION and the
+// ProxyApi's routes; needs the database's SqlClient, the RateLimitGuard, and PROXY_ADMIN_API_KEY, DEPLOY_VERSION and the
 // upstreams' credentials in the Config.
 export const routes = HttpApiBuilder.layer(ProxyApi).pipe(Layer.provide([healthHandlers, pushHandlers, imagesHandlers]), Layer.provide([apiKeyAuth, upstreams]))
 

@@ -4,7 +4,7 @@ import { D1Client } from "@effect/sql-d1"
 import { ALCHEMY_DEV } from "alchemy"
 import { Config, Effect, Layer, Option } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
-import { commitVersion } from "../version.ts"
+import * as Deploy from "effect-lib/deploy"
 import { rateLimitGuard, respondToFailures, routes } from "./http.ts"
 
 // `true` skips the rate limit. Set only under `alchemy dev`.
@@ -46,8 +46,12 @@ const proxyUrlOf = (devPort: number) =>
     return yield* Config.String("PROXY_URL")
   })
 
-// The commit deployed: PROXY_VERSION once the Worker runs, which reads its props again; on deploy, `git describe`.
-const proxyVersion = Config.option(Config.String("PROXY_VERSION")).pipe(Config.map(Option.getOrElse(commitVersion)))
+// The commit deployed: DEPLOY_VERSION, set by `bun run deploy` and read again when the Worker runs; under `alchemy dev`,
+// this checkout's, even from a directory symlinked to it; outside a git checkout it dies.
+const deployVersion = Effect.gen(function* deployVersion() {
+  const deployed = yield* Config.option(Config.String("DEPLOY_VERSION"))
+  return yield* Option.match(deployed, { onNone: () => Effect.orDie(Deploy.commitVersion(import.meta.dir)), onSome: Effect.succeed })
+})
 
 // A host other than workers.dev, which Cloudflare serves without one, is attached as a custom domain.
 const domainOf = (proxyUrl: string): { readonly domain?: string } => {
@@ -90,7 +94,7 @@ export default class Worker extends Cloudflare.Worker<Worker>()(
         PROXY_ADMIN_API_KEY: yield* Config.Redacted("PROXY_ADMIN_API_KEY"),
         // The Worker reads its props again when it runs, so it needs the URL it was deployed for.
         PROXY_URL: proxyUrl,
-        PROXY_VERSION: yield* proxyVersion,
+        DEPLOY_VERSION: yield* deployVersion,
       },
     }
   }),

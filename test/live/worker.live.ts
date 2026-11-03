@@ -5,9 +5,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { Effect, Redacted } from "effect"
 import * as Credentials from "effect-lib/credentials"
+import * as Deploy from "effect-lib/deploy"
 import { ProxyClient } from "../../src/client/index.ts"
 import { ProxyAdminApiKey, ProxyUrl } from "../../src/credentials.ts"
-import { commitVersion } from "../../src/version.ts"
 import { checkPush, clientOf, outcome, run, runKeys } from "../support.ts"
 
 const { url, adminKey } = await Effect.runPromise(
@@ -15,6 +15,9 @@ const { url, adminKey } = await Effect.runPromise(
     return { url: Redacted.value(yield* ProxyUrl.resolve), adminKey: Redacted.value(yield* ProxyAdminApiKey.resolve) }
   }).pipe(Effect.provide(Credentials.layer(Credentials.bunKeyring())))
 )
+
+// What `bun run deploy` gave the Worker as DEPLOY_VERSION, when it deployed this checkout.
+const version = await Effect.runPromise(Deploy.commitVersion(import.meta.dir))
 
 const keyName = (scope: string) => `live-${new Date().toISOString()}-${scope}`
 
@@ -46,7 +49,7 @@ afterAll(async () => {
 
 test("/health answers ok and the commit of this checkout", async () => {
   const health = await run(Effect.flatMap(clientOf(url), (client) => client.health.check()))
-  expect(health).toEqual({ status: "ok", version: commitVersion() })
+  expect(health).toEqual({ status: "ok", version })
 })
 
 describe("proxy keys", () => {
@@ -80,7 +83,7 @@ describe("/api/push", () => {
 
   test("ProxyClient.notify reaches Pushover with the Worker's credentials", async () => {
     await Effect.runPromise(
-      ProxyClient.use((client) => client.notify(`Live test of ${commitVersion()}`, { title: "proxy test:live" })).pipe(
+      ProxyClient.use((client) => client.notify(`Live test of ${version}`, { title: "proxy test:live" })).pipe(
         Effect.provide(ProxyClient.layer({ url, apiKey: pushKey.key }))
       )
     )
