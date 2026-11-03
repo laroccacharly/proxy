@@ -41,6 +41,13 @@ export class RateLimitGuard extends HttpApiMiddleware.Service<RateLimitGuard>()(
 // limit and a call without a valid key spends none of it.
 export class PushRoutes extends HttpApiGroup.make("push")
   .add(HttpApiEndpoint.get("check", "/api/push", { success: CallingApiKey }))
+  // The Worker picks the recipient, so a leaked key can only notify the owner.
+  .add(
+    HttpApiEndpoint.post("notify", "/api/push", {
+      payload: Schema.Struct({ message: Schema.String, title: Schema.optionalKey(Schema.String) }),
+      error: [ProxyError, RateLimited],
+    })
+  )
   .middleware(RateLimitGuard)
   .middleware(ApiKeyAuth.Bearer)
   .annotate(ApiKeyAuth.Scope, "push") {}

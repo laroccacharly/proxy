@@ -2,7 +2,7 @@ import * as Cloudflare from "@alchemy.run/cloudflare"
 import type { RateLimit } from "@cloudflare/workers-types"
 import { D1Client } from "@effect/sql-d1"
 import { ALCHEMY_DEV } from "alchemy"
-import { Config, Effect, Layer } from "effect"
+import { Config, Effect, Layer, Option } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { rateLimitGuard, respondToFailures, routes } from "./http.ts"
 
@@ -19,6 +19,17 @@ const devEnv = (isDev: boolean): Record<string, string> => {
   }
   return {}
 }
+
+// The upstreams' secrets, from the environment, required under `alchemy dev` too. PUSH_ORIGIN is optional: the tests
+// point it at a fake Pushover.
+const secretsEnv = Effect.gen(function* secretsEnv() {
+  const pushOrigin = yield* Config.option(Config.String("PUSH_ORIGIN"))
+  return {
+    PUSH_APP_TOKEN: yield* Config.Redacted("PUSH_APP_TOKEN"),
+    PUSH_USER_KEY: yield* Config.Redacted("PUSH_USER_KEY"),
+    ...Option.match(pushOrigin, { onNone: () => ({}), onSome: (origin) => ({ PUSH_ORIGIN: origin }) }),
+  }
+})
 
 // Where the Worker is reached: PROXY_URL, required on deploy; under `alchemy dev`, the dev server.
 const proxyUrlOf = (devPort: number) =>
@@ -66,6 +77,7 @@ export default class Worker extends Cloudflare.Worker<Worker>()(
       ...domainOf(proxyUrl),
       env: {
         ...devEnv(yield* ALCHEMY_DEV),
+        ...(yield* secretsEnv),
         PROXY_ADMIN_API_KEY: yield* Config.Redacted("PROXY_ADMIN_API_KEY"),
         // The Worker reads its props again when it runs, so it needs the URL it was deployed for.
         PROXY_URL: proxyUrl,

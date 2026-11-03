@@ -1,5 +1,5 @@
 // The Worker's HttpApi in Bun, over SQLite in memory with the tables from ./migrations, behind a real port so the
-// typed client and the `proxy keys` command reach it as they would the Worker.
+// typed client and the `proxy keys` command reach it as they would the Worker. A fake Pushover stands in upstream.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
@@ -14,6 +14,8 @@ import { ProxyApi } from "../src/api.ts"
 import { rateLimitGuard, routes } from "../src/worker/http.ts"
 
 const ADMIN_API_KEY = "test-proxy-admin-api-key"
+const PUSH_APP_TOKEN = "test-push-app-token"
+const PUSH_USER_KEY = "test-push-user-key"
 const projectRoot = join(import.meta.dir, "..")
 const migrationsDir = join(projectRoot, "migrations")
 
@@ -33,6 +35,35 @@ const migratedSqlite = Layer.effectDiscard(
   })
 ).pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })))
 
+// Answers like Pushover, and keeps what it gets; `rejecting` makes it refuse with `status: 0` and its reasons.
+const fakePushover = {
+  received: [] as Array<Record<string, string>>,
+  rejecting: false,
+}
+const pushover = Bun.serve({
+  port: 0,
+  hostname: "127.0.0.1",
+  routes: {
+    "/1/messages.json": {
+      POST: async (request) => {
+        fakePushover.received.push(await request.json())
+        if (fakePushover.rejecting) {
+          return Response.json({ status: 0, errors: ["application token is invalid"] }, { status: 400 })
+        }
+        return Response.json({ status: 1, request: "r" })
+      },
+    },
+  },
+})
+
+// The Worker's env, as `alchemy dev` would set it.
+const workerEnv = {
+  PROXY_ADMIN_API_KEY: ADMIN_API_KEY,
+  PUSH_APP_TOKEN,
+  PUSH_USER_KEY,
+  PUSH_ORIGIN: pushover.url.origin,
+}
+
 interface TestWorker {
   readonly url: string
   // How many calls reached the rate limit.
@@ -50,7 +81,7 @@ const startWorker = (options: { readonly withinRateLimit: boolean }): TestWorker
   const { handler, dispose } = HttpRouter.toWebHandler(
     routes.pipe(
       Layer.provide([rateLimitGuard(isWithinRateLimit), migratedSqlite, HttpServer.layerServices]),
-      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ PROXY_ADMIN_API_KEY: ADMIN_API_KEY })))
+      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(workerEnv)))
     ),
     { disableLogger: true }
   )
@@ -108,7 +139,10 @@ beforeAll(() => {
   worker = startWorker({ withinRateLimit: true })
 })
 
-afterAll(() => worker.stop())
+afterAll(async () => {
+  await worker.stop()
+  await pushover.stop(true)
+})
 
 test("/health answers with no key", async () => {
   const health = await run(Effect.flatMap(clientOf(worker), (client) => client.health.check()))
@@ -178,6 +212,38 @@ describe("/api/push", () => {
     expect(await outcome(checkPush(worker, { key: ADMIN_API_KEY }))).toBe("Unauthorized")
     const listedWithConsumerKey = Effect.flatMap(clientOf(worker, { admin: key }), (client) => client.apiKeys.list({ query: {} }))
     expect(await outcome(listedWithConsumerKey)).toBe("Unauthorized")
+  })
+})
+
+describe("POST /api/push", () => {
+  const notify = (credentials: { readonly key?: string; readonly admin?: string }, payload: { readonly message: string; readonly title?: string }) =>
+    Effect.flatMap(clientOf(worker, credentials), (client) => client.push.notify({ payload }))
+
+  test("the fake Pushover gets the message, the title, and the Worker's token and user key", async () => {
+    const key = await createKey(worker, "laptop", ["push"])
+    fakePushover.received = []
+    await run(notify({ key }, { message: "build done", title: "ci" }))
+    expect(fakePushover.received).toEqual([{ token: PUSH_APP_TOKEN, user: PUSH_USER_KEY, message: "build done", title: "ci" }])
+  })
+
+  test("no key, a wrong key, the admin key and a key without the push scope reach no Pushover", async () => {
+    const painter = await createKey(worker, "painter", ["images"])
+    fakePushover.received = []
+    expect(await outcome(notify({}, { message: "hi" }))).toBe("Unauthorized")
+    expect(await outcome(notify({ key: "pxy_not-a-key" }, { message: "hi" }))).toBe("Unauthorized")
+    expect(await outcome(notify({ key: ADMIN_API_KEY }, { message: "hi" }))).toBe("Unauthorized")
+    expect(await outcome(notify({ key: painter }, { message: "hi" }))).toBe("Forbidden")
+    expect(fakePushover.received).toEqual([])
+  })
+
+  test("Pushover answering status 0 is a ProxyError with its reasons", async () => {
+    const key = await createKey(worker, "laptop", ["push"])
+    fakePushover.rejecting = true
+    const error = await run(Effect.flip(notify({ key }, { message: "hi" }))).finally(() => {
+      fakePushover.rejecting = false
+    })
+    expect(error._tag).toBe("ProxyError")
+    expect(error.message).toContain("application token is invalid")
   })
 })
 
