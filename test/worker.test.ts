@@ -6,21 +6,19 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
-import { ApiKeyAuth } from "api-key-auth"
-import { ConfigProvider, Effect, Layer, Redacted } from "effect"
-import { FetchHttpClient, type HttpClient, HttpRouter, HttpServer } from "effect/http"
-import { HttpApiClient } from "effect/http-api"
+import { ConfigProvider, Effect, Layer } from "effect"
+import { HttpRouter, HttpServer } from "effect/http"
 import { SqlClient } from "effect/sql"
-import { ProxyApi } from "../src/api.ts"
 import { ProxyClient } from "../src/client/index.ts"
 import { rateLimitGuard, routes } from "../src/worker/http.ts"
+import { checkPush as checkPushAt, clientOf as clientAt, outcome, projectRoot, run, runKeys as runSupportKeys } from "./support.ts"
 
 const ADMIN_API_KEY = "test-proxy-admin-api-key"
 const PUSH_APP_TOKEN = "test-push-app-token"
 const PUSH_USER_KEY = "test-push-user-key"
 const OPENAI_API_KEY = "test-openai-api-key"
 const FAKE_PNG = "fake-png-bytes"
-const projectRoot = join(import.meta.dir, "..")
+const VERSION = "test-version"
 const migrationsDir = join(projectRoot, "migrations")
 
 // The statements of ./migrations, in the order alchemy applies them.
@@ -89,6 +87,7 @@ const workerEnv = {
   PUSH_ORIGIN: pushover.url.origin,
   OPENAI_API_KEY,
   OPENAI_ORIGIN: openai.url.origin,
+  PROXY_VERSION: VERSION,
 }
 
 interface TestWorker {
@@ -123,37 +122,11 @@ const startWorker = (options: { readonly withinRateLimit: boolean }): TestWorker
   }
 }
 
-// `proxy keys …` against `worker`, with the admin key from the environment.
-const runKeys = async (worker: TestWorker, args: ReadonlyArray<string>, adminKey = ADMIN_API_KEY) => {
-  const child = Bun.spawn(["bun", join(projectRoot, "src", "cli", "index.ts"), "keys", ...args], {
-    env: { ...process.env, PROXY_URL: worker.url, PROXY_ADMIN_API_KEY: adminKey },
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-  const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
-  return { stdout: stdout.trim(), stderr, exitCode }
-}
+const runKeys = (worker: TestWorker, args: ReadonlyArray<string>, adminKey = ADMIN_API_KEY) => runSupportKeys(worker.url, adminKey, args)
 
-// The typed client, sending `key` as a consumer or `admin` as the admin, or nothing.
-const clientOf = (worker: TestWorker, credentials: { readonly key?: string; readonly admin?: string } = {}) => {
-  const middlewares = []
-  if (credentials.key !== undefined) {
-    middlewares.push(ApiKeyAuth.layerClient(Redacted.make(credentials.key)))
-  }
-  if (credentials.admin !== undefined) {
-    middlewares.push(ApiKeyAuth.layerAdminClient(Redacted.make(credentials.admin)))
-  }
-  return HttpApiClient.make(ProxyApi, { baseUrl: worker.url }).pipe(Effect.provide(Layer.mergeAll(Layer.empty, ...middlewares)))
-}
+const clientOf = (worker: TestWorker, credentials: { readonly key?: string; readonly admin?: string } = {}) => clientAt(worker.url, credentials)
 
-const run = <A, E>(effect: Effect.Effect<A, E, HttpClient.HttpClient>) => Effect.runPromise(effect.pipe(Effect.provide(FetchHttpClient.layer)))
-
-// The tag of the error `effect` fails with, or `ok`.
-const outcome = <A, E extends { readonly _tag: string }>(effect: Effect.Effect<A, E, HttpClient.HttpClient>) =>
-  run(effect.pipe(Effect.as("ok"), Effect.catch((error) => Effect.succeed(error._tag))))
-
-const checkPush = (worker: TestWorker, credentials: { readonly key?: string; readonly admin?: string }) =>
-  Effect.flatMap(clientOf(worker, credentials), (client) => client.push.check())
+const checkPush = (worker: TestWorker, credentials: { readonly key?: string; readonly admin?: string }) => checkPushAt(worker.url, credentials)
 
 const createKey = (worker: TestWorker, name: string, scopes: readonly [string, ...Array<string>]) =>
   run(Effect.flatMap(clientOf(worker, { admin: ADMIN_API_KEY }), (client) => client.apiKeys.create({ payload: { name, scopes } }))).then(
@@ -172,9 +145,9 @@ afterAll(async () => {
   await openai.stop(true)
 })
 
-test("/health answers with no key", async () => {
+test("/health answers the version with no key", async () => {
   const health = await run(Effect.flatMap(clientOf(worker), (client) => client.health.check()))
-  expect(health).toEqual({ status: "ok" })
+  expect(health).toEqual({ status: "ok", version: VERSION })
 })
 
 describe("proxy keys", () => {
@@ -200,6 +173,15 @@ describe("proxy keys", () => {
     expect(revoked.exitCode).toBe(0)
     expect(await outcome(checkPush(worker, { key }))).toBe("Unauthorized")
     expect((await runKeys(worker, ["list"])).stdout).toMatch(new RegExp(`${id}.*revoked`, "u"))
+  })
+
+  test("delete by id makes the key answer 401 and leave the list", async () => {
+    const key = await createKey(worker, "temporary", ["push"])
+    const { id } = await run(checkPush(worker, { key }))
+    const deleted = await runKeys(worker, ["delete", id])
+    expect(deleted.exitCode).toBe(0)
+    expect(await outcome(checkPush(worker, { key }))).toBe("Unauthorized")
+    expect((await runKeys(worker, ["list"])).stdout).not.toContain(id)
   })
 
   test("a wrong admin key fails in one line", async () => {

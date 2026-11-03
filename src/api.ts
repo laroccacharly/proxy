@@ -21,7 +21,10 @@ export type ImageOptions = typeof ImageOptions.Type
 
 const Png = Schema.Uint8Array.pipe(HttpApiSchema.asUint8Array({ contentType: "image/png" }))
 
-const HealthGroup = HttpApiGroup.make("health").add(HttpApiEndpoint.get("check", "/health", { success: Schema.Struct({ status: Schema.Literal("ok") }) }))
+const HealthGroup = HttpApiGroup.make("health").add(HttpApiEndpoint.get("check", "/health", {
+    // `version`: the commit the Worker was deployed from.
+    success: Schema.Struct({ status: Schema.Literal("ok"), version: Schema.String }),
+  }))
 
 // Refuses a call over the Worker's global rate limit, shared by every consumer.
 export class RateLimitGuard extends HttpApiMiddleware.Service<RateLimitGuard>()("proxy/RateLimitGuard", { error: RateLimited }) {}

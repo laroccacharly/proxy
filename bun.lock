@@ -7,7 +7,7 @@
       "dependencies": {
         "@effect/platform-bun": "4.1.2",
         "@effect/sql-d1": "4.1.2",
-        "api-key-auth": "github:laroccacharly/api-key-auth#v0.2.0",
+        "api-key-auth": "github:laroccacharly/api-key-auth#v0.3.0",
         "effect": "4.1.2",
         "effect-lib": "github:laroccacharly/effect-lib#v0.23.0",
       },
@@ -301,7 +301,7 @@
 
     "ansi-styles": ["ansi-styles@6.2.3", "", {}, "sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg=="],
 
-    "api-key-auth": ["api-key-auth@github:laroccacharly/api-key-auth#bf19d88", { "peerDependencies": { "effect": "^4.1.2" } }, "laroccacharly-api-key-auth-bf19d88", "sha512-fqsSpVwHM4Ecka+kgIEfxj7frrq9l4MjkK1eEXWWjcEbZOlr7VBz7Au1Lh+HPjTX2QxwJ1WbEAVjS0vNQeGhzQ=="],
+    "api-key-auth": ["api-key-auth@github:laroccacharly/api-key-auth#ac33d7c", { "peerDependencies": { "effect": "^4.1.2" } }, "laroccacharly-api-key-auth-ac33d7c", "sha512-fZdznbmaDZgzTk5uwALe9iSijA5tgonbC9NkAWs6IwtqvsLmvqfQaB55yLsDynsFW4pgSdn7DMpaGbArShiVjg=="],
 
     "bun-types": ["bun-types@1.4.4", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ=="],
 

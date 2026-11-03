@@ -14,13 +14,14 @@
     "proxy": "bun ./src/cli/index.ts",
     "deploy": "bun ./src/deploy/deploy.ts",
     "test": "bun test",
+    "test:live": "bun test --timeout 30000 ./test/live/worker.live.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint . && ts-lint-effect"
   },
   "dependencies": {
     "@effect/platform-bun": "4.1.2",
     "@effect/sql-d1": "4.1.2",
-    "api-key-auth": "github:laroccacharly/api-key-auth#v0.2.0",
+    "api-key-auth": "github:laroccacharly/api-key-auth#v0.3.0",
     "effect": "4.1.2",
     "effect-lib": "github:laroccacharly/effect-lib#v0.23.0"
   },
