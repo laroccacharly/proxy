@@ -18,16 +18,26 @@
     "lint": "oxlint . && ts-lint-effect"
   },
   "dependencies": {
-    "@effect/platform-bun": "4.0.6",
-    "effect": "4.0.6",
-    "effect-lib": "github:laroccacharly/effect-lib#v0.16.0"
+    "@effect/platform-bun": "4.1.2",
+    "@effect/sql-d1": "4.1.2",
+    "api-key-auth": "github:laroccacharly/api-key-auth#v0.2.0",
+    "effect": "4.1.2",
+    "effect-lib": "github:laroccacharly/effect-lib#v0.22.0"
   },
   "devDependencies": {
+    "@alchemy.run/cloudflare": "2.0.0-beta.85",
+    "@cloudflare/workers-types": "^5.20261103.1",
+    "@effect/platform-node": "4.1.2",
+    "@effect/sql-sqlite-bun": "4.1.2",
     "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "^1.4.4",
+    "alchemy": "2.0.0-beta.85",
     "oxlint": "^1.90.0",
     "oxlint-tsgolint": "^7.0.2005",
-    "ts-lint": "github:laroccacharly/ts-lint#v0.6.0",
+    "ts-lint": "github:laroccacharly/ts-lint#v0.7.1",
     "typescript": "^7.0.2"
+  },
+  "patchedDependencies": {
+    "alchemy@2.0.0-beta.85": "patches/alchemy@2.0.0-beta.85.patch"
   }
 }
