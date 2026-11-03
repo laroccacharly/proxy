@@ -6,7 +6,7 @@
 import * as Deploy from "effect-lib/deploy"
 import * as OpenAIImage from "effect-lib/openai-image"
 import * as Push from "effect-lib/push"
-import { ProxyAdminApiKey, ProxyUrl } from "../credentials.ts"
+import { ProxyAdminApiKey } from "../credentials.ts"
 import { version } from "../version.ts"
 
-Deploy.run({ app: "proxy", url: ProxyUrl, secrets: [ProxyAdminApiKey, Push.AppToken, Push.UserKey, OpenAIImage.ApiKey] }, { version })
+Deploy.run({ app: "proxy", url: "PROXY_URL", secrets: [ProxyAdminApiKey, Push.AppToken, Push.UserKey, OpenAIImage.ApiKey] }, { version })

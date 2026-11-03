@@ -30,10 +30,10 @@ Upstream failures become `ProxyError`. Log method, path and key name, never a me
 ## Deploy
 `bun run deploy` with effect-lib's `Deploy.run` (src/deploy/deploy.ts). `bun run deploy login` keeps the secrets in the
 OS keyring. Ask before deploying.
-`Deploy.run` gets `url: ProxyUrl`, where the Worker is reached. The Worker's version is the commit it was deployed from:
-Deploy gives alchemy `git describe --always --dirty` as DEPLOY_VERSION, the Worker answers it on /health, and the deploy
-waits until it does. Under `alchemy dev` and in the live test, `Deploy.commitVersion()` gives the same value. Nothing
-to bump.
+`Deploy.run` gets `url: "PROXY_URL"`, where the Worker is reached. The Worker's version is the commit it was deployed
+from: Deploy gives alchemy `git describe --always --dirty` as DEPLOY_VERSION, the Worker answers it on /health, and the
+deploy waits until it does; `bun run deploy check` waits the same way, without deploying. Under `alchemy dev` and in the
+live test, `Deploy.commitVersion()` gives the same value. Nothing to bump.
 
 ## CLI
 `proxy login | auth logout | auth status`: PROXY_URL and PROXY_API_KEY on a consumer machine.
