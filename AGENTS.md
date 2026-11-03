@@ -38,6 +38,7 @@ live test, `Deploy.commitVersion()` gives the same value. Nothing to bump.
 ## CLI
 `proxy login | auth logout | auth status`: PROXY_URL and PROXY_API_KEY on a consumer machine.
 `proxy keys create | list | revoke | delete | migrations`: api-key-auth's keysCommand, with PROXY_URL and PROXY_ADMIN_API_KEY.
+Its HttpClient is effect-lib's `CloudflareDns.layer()`, so the CLI reaches a domain the deploy just created.
 
 ## Client
 `ProxyClient.layer()` reads PROXY_URL and PROXY_API_KEY, environment first, then the keyring;
@@ -52,4 +53,5 @@ test/worker.test.ts runs the Worker's HttpApi in Bun over @effect/sql-sqlite-bun
 `bun run test:live` (test/live/worker.live.ts, never run by `bun test`) tests the running Worker at PROXY_URL with
 PROXY_ADMIN_API_KEY, from the environment or the keyring: /health has this checkout's version, the auth cases but the
 rate limit, and one real push. Its keys are deleted at the end. Images are not tested live.
+Its calls go through `CloudflareDns.layer()` too.
 Don't smoke-test under `alchemy dev`. Test after deploying, on the real Worker: `bun run test:live`.

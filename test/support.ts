@@ -33,11 +33,18 @@ export const clientOf = (url: string, credentials: { readonly key?: string; read
   return HttpApiClient.make(ProxyApi, { baseUrl: url }).pipe(Effect.provide(Layer.mergeAll(Layer.empty, ...middlewares)))
 }
 
-export const run = <A, E>(effect: Effect.Effect<A, E, HttpClient.HttpClient>) => Effect.runPromise(effect.pipe(Effect.provide(FetchHttpClient.layer)))
+// `run` and `outcome`, sending the calls through `http`.
+export const runnersOver = (http: Layer.Layer<HttpClient.HttpClient>) => {
+  const run = <A, E>(effect: Effect.Effect<A, E, HttpClient.HttpClient>) => Effect.runPromise(effect.pipe(Effect.provide(http)))
 
-// The tag of the error `effect` fails with, or `ok`.
-export const outcome = <A, E extends { readonly _tag: string }>(effect: Effect.Effect<A, E, HttpClient.HttpClient>) =>
-  run(effect.pipe(Effect.as("ok"), Effect.catch((error) => Effect.succeed(error._tag))))
+  // The tag of the error `effect` fails with, or `ok`.
+  const outcome = <A, E extends { readonly _tag: string }>(effect: Effect.Effect<A, E, HttpClient.HttpClient>) =>
+    run(effect.pipe(Effect.as("ok"), Effect.catch((error) => Effect.succeed(error._tag))))
+
+  return { run, outcome }
+}
+
+export const { run, outcome } = runnersOver(FetchHttpClient.layer)
 
 export const checkPush = (url: string, credentials: { readonly key?: string; readonly admin?: string }) =>
   Effect.flatMap(clientOf(url, credentials), (client) => client.push.check())

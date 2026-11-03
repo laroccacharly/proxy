@@ -3,6 +3,7 @@ import { BunRuntime, BunServices } from "@effect/platform-bun"
 import { KeysCommandError, keysCommand } from "api-key-auth/cli"
 import { Effect, Layer, Redacted } from "effect"
 import { Command } from "effect/cli"
+import * as CloudflareDns from "effect-lib/cloudflare-dns"
 import * as Credentials from "effect-lib/credentials"
 import { ProxyApi } from "../api.ts"
 import { consumerCredentials, ProxyAdminApiKey, ProxyUrl } from "../credentials.ts"
@@ -23,6 +24,7 @@ const proxy = Command.make("proxy").pipe(
   Command.withSubcommands([keys, ...consumerCredentials.commands])
 )
 
-const MainLive = Layer.mergeAll(BunServices.layer, consumerCredentials.layer(Credentials.bunKeyring()))
+// The Worker resolves through Cloudflare DNS, so `proxy keys` reaches a domain the deploy just created.
+const MainLive = Layer.mergeAll(BunServices.layer, CloudflareDns.layer(), consumerCredentials.layer(Credentials.bunKeyring()))
 
 BunRuntime.runMain(Command.run(proxy, { version }).pipe(Effect.provide(MainLive)))
