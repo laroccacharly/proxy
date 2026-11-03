@@ -1,7 +1,10 @@
 // The running Worker at PROXY_URL, with PROXY_ADMIN_API_KEY: the environment first, then the OS keyring, as
 // `proxy keys` reads them. Run with `bun run test:live`, never by `bun test`: it sends one real Pushover notification.
 // Its keys are named live-<time> and deleted afterwards. The rate limit is left alone: it is shared by every consumer.
+// Every request, the `proxy keys` processes' too, resolves the Worker through Cloudflare DNS: right after a deploy that
+// creates the domain, the machine's resolver, a VPN's say, may still cache "not found".
 
+import "effect-lib/cloudflare-dns/global"
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { Effect, Redacted } from "effect"
 import * as Credentials from "effect-lib/credentials"
@@ -9,6 +12,8 @@ import * as Deploy from "effect-lib/deploy"
 import { ProxyClient } from "../../src/client/index.ts"
 import { ProxyAdminApiKey, ProxyUrl } from "../../src/credentials.ts"
 import { checkPush, clientOf, outcome, run, runKeys } from "../support.ts"
+
+process.env["BUN_OPTIONS"] = `--preload=${Bun.resolveSync("effect-lib/cloudflare-dns/global", import.meta.dir)}`
 
 const { url, adminKey } = await Effect.runPromise(
   Effect.gen(function* liveCredentials() {
