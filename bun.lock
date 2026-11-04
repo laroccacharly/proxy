@@ -9,7 +9,7 @@
         "@effect/sql-d1": "4.1.2",
         "api-key-auth": "github:laroccacharly/api-key-auth#v0.4.0",
         "effect": "4.1.2",
-        "effect-lib": "github:laroccacharly/effect-lib#v0.29.0",
+        "effect-lib": "github:laroccacharly/effect-lib#v0.30.0",
       },
       "devDependencies": {
         "@alchemy.run/cloudflare": "2.0.0-beta.85",
@@ -317,7 +317,7 @@
 
     "effect": ["effect@4.1.2", "", {}, "sha512-d3Oah1WyKxFLFh19yWheS5IXIVaITzxZ71JkE1rkUozq/6EcJSU5nPk5bF2QrSygZ3SQoiNQB8TsxFriyMeMaQ=="],
 
-    "effect-lib": ["effect-lib@github:laroccacharly/effect-lib#e3e3101", { "peerDependencies": { "@effect/platform-bun": "^4.1.0", "effect": "^4.1.0" }, "bin": { "elib": "./src/cli.ts" } }, "laroccacharly-effect-lib-e3e3101", "sha512-0sxZlsVSA9enkiPavglluJRjEFJuhU3DAIiM/6fmtNICtMo0XojuGxthoDQ5vvXOTe+t4lwufdrcMLZC0l7Caw=="],
+    "effect-lib": ["effect-lib@github:laroccacharly/effect-lib#97e8ca5", { "peerDependencies": { "@effect/platform-bun": "^4.1.0", "effect": "^4.1.0" }, "bin": { "elib": "./src/cli.ts" } }, "laroccacharly-effect-lib-97e8ca5", "sha512-D33lbWxnDdzsQZBfIEpRICLLle3Nfo+NIv206s67ujPZCgmxnXvP1Rr8tCY1TfPx/sDiML/hFDdb145oNLjYPw=="],
 
     "emoji-regex": ["emoji-regex@10.6.0", "", {}, "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A=="],
 

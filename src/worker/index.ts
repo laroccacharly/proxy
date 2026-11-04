@@ -46,13 +46,6 @@ const proxyUrlOf = (devPort: number) =>
     return yield* Config.String("PROXY_URL")
   })
 
-// The commit deployed: DEPLOY_VERSION, set by `bun run deploy` and read again when the Worker runs; under `alchemy dev`,
-// this checkout's, even from a directory symlinked to it; outside a git checkout it dies.
-const deployVersion = Effect.gen(function* deployVersion() {
-  const deployed = yield* Config.option(Config.String("DEPLOY_VERSION"))
-  return yield* Option.match(deployed, { onNone: () => Effect.orDie(Deploy.commitVersion(import.meta.dir)), onSome: Effect.succeed })
-})
-
 // A host other than workers.dev, which Cloudflare serves without one, is attached as a custom domain.
 const domainOf = (proxyUrl: string): { readonly domain?: string } => {
   const { hostname } = new URL(proxyUrl)
@@ -94,7 +87,8 @@ export default class Worker extends Cloudflare.Worker<Worker>()(
         PROXY_ADMIN_API_KEY: yield* Config.Redacted("PROXY_ADMIN_API_KEY"),
         // The Worker reads its props again when it runs, so it needs the URL it was deployed for.
         PROXY_URL: proxyUrl,
-        DEPLOY_VERSION: yield* deployVersion,
+        // The commit deployed, read again when the Worker runs; this checkout's under `alchemy dev`.
+        DEPLOY_VERSION: yield* Deploy.workerVersion(import.meta.dir),
       },
     }
   }),
