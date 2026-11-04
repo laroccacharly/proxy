@@ -1,10 +1,11 @@
 import { ApiKeyAuth, CurrentApiKey } from "api-key-auth"
-import { Config, Effect, Layer } from "effect"
+import { Config, Context, Effect, Layer } from "effect"
 import { FetchHttpClient, HttpServerError, type HttpServerResponse } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 import * as Credentials from "effect-lib/credentials"
 import * as OpenAIImage from "effect-lib/openai-image"
 import * as Push from "effect-lib/push"
+import { LakeClient } from "lake-client"
 import { ProxyApi, ProxyError, RateLimited, RateLimitGuard } from "../api.ts"
 
 // Refuses the call when `isWithinRateLimit` is false, before it reaches the handler.
@@ -34,13 +35,33 @@ const toProxyError = (error: { readonly message: string }) => new ProxyError({ m
 // Who called what, never what they sent.
 const logCall = (endpoint: string) => Effect.flatMap(Effect.service(CurrentApiKey), (key) => Effect.logInfo(`${endpoint} by ${key.name} (${key.id})`))
 
+// Runs work after the response is sent, without delaying or failing it: the request's ctx.waitUntil on the Worker.
+export class Background extends Context.Service<Background, { readonly run: (effect: Effect.Effect<void>) => Effect.Effect<void> }>()("proxy/Background") {}
+
+// The push as a push.sent event in Lake, with LAKE_URL and PROXY_LAKE_API_KEY. Lake failing, or missing from the Config, is
+// only logged, by its tag: its message could quote the push.
+const recordPushSent = (keyName: string, payload: { readonly message: string; readonly title?: string }) =>
+  Effect.gen(function* recordPushSent() {
+    const url = yield* Config.String("LAKE_URL")
+    const apiKey = yield* Config.Redacted("PROXY_LAKE_API_KEY")
+    yield* LakeClient.use((lake) => lake.record({ source: "proxy", type: "push.sent", occurred_at: Date.now(), subject: keyName, data: { ...payload } })).pipe(
+      Effect.provide(LakeClient.layer({ url, apiKey }))
+    )
+  }).pipe(Effect.catch((error) => Effect.logWarning(`POST /api/push by ${keyName}: not recorded in Lake, ${error._tag}`)))
+
 const pushHandlers = HttpApiBuilder.group(ProxyApi, "push", (handlers) =>
   Effect.gen(function* pushHandlers() {
     const push = yield* Push.Push
+    const background = yield* Background
     return handlers
       .handle("check", () => Effect.service(CurrentApiKey))
       .handle("notify", ({ payload }) =>
-        logCall("POST /api/push").pipe(Effect.andThen(push.notify(payload.message, { title: payload.title })), Effect.mapError(toProxyError))
+        Effect.gen(function* notify() {
+          yield* logCall("POST /api/push")
+          yield* push.notify(payload.message, { title: payload.title }).pipe(Effect.mapError(toProxyError))
+          const key = yield* CurrentApiKey
+          yield* background.run(recordPushSent(key.name, payload))
+        })
       )
   })
 )
@@ -64,8 +85,8 @@ const upstreams = Layer.unwrap(
   })
 ).pipe(Layer.provide([Credentials.envOnlyLayer, FetchHttpClient.layer]))
 
-// ProxyApi's routes; needs the database's SqlClient, the RateLimitGuard, and PROXY_ADMIN_API_KEY, DEPLOY_VERSION and the
-// upstreams' credentials in the Config.
+// ProxyApi's routes; needs the database's SqlClient, the RateLimitGuard, the Background, and PROXY_ADMIN_API_KEY,
+// DEPLOY_VERSION, the upstreams' credentials and Lake's in the Config.
 export const routes = HttpApiBuilder.layer(ProxyApi).pipe(Layer.provide([healthHandlers, pushHandlers, imagesHandlers]), Layer.provide([apiKeyAuth, upstreams]))
 
 // Failures the API doesn't encode itself, such as an unknown route, as responses.

@@ -1,6 +1,6 @@
 // The Worker's HttpApi in Bun, over SQLite in memory with the tables from ./migrations, behind a real port so the
 // typed client and the `proxy keys` command reach it as they would the Worker. A fake Pushover and a fake OpenAI
-// stand in upstream.
+// stand in upstream, and a fake Lake records the pushes.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
@@ -9,14 +9,16 @@ import { SqliteClient } from "@effect/sql-sqlite-bun"
 import { ConfigProvider, Effect, Layer } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { SqlClient } from "effect/sql"
+import type { NewEvent } from "lake-client"
 import { ProxyClient } from "../src/client/index.ts"
-import { rateLimitGuard, routes } from "../src/worker/http.ts"
+import { Background, rateLimitGuard, routes } from "../src/worker/http.ts"
 import { checkPush as checkPushAt, clientOf as clientAt, outcome, projectRoot, run, runKeys as runSupportKeys } from "./support.ts"
 
 const ADMIN_API_KEY = "test-proxy-admin-api-key"
 const PUSH_APP_TOKEN = "test-push-app-token"
 const PUSH_USER_KEY = "test-push-user-key"
 const OPENAI_API_KEY = "test-openai-api-key"
+const LAKE_API_KEY = "lake_test-proxy-lake-api-key"
 const FAKE_PNG = "fake-png-bytes"
 const VERSION = "test-version"
 const migrationsDir = join(projectRoot, "migrations")
@@ -79,6 +81,27 @@ const openai = Bun.serve({
   },
 })
 
+// Answers like Lake's POST /events, and keeps the bearer and the event it gets; `down` makes it answer 503.
+const fakeLake = {
+  received: [] as Array<{ readonly authorization: string | null; readonly event: NewEvent }>,
+  down: false,
+}
+const lake = Bun.serve({
+  port: 0,
+  hostname: "127.0.0.1",
+  routes: {
+    "/events": {
+      POST: async (request) => {
+        if (fakeLake.down) {
+          return new Response("down", { status: 503 })
+        }
+        fakeLake.received.push({ authorization: request.headers.get("authorization"), event: await request.json() })
+        return Response.json({ ids: ["01JB0000000000000000000000"] })
+      },
+    },
+  },
+})
+
 // The Worker's env, as `alchemy dev` would set it.
 const workerEnv = {
   PROXY_ADMIN_API_KEY: ADMIN_API_KEY,
@@ -87,6 +110,8 @@ const workerEnv = {
   PUSH_ORIGIN: pushover.url.origin,
   OPENAI_API_KEY,
   OPENAI_ORIGIN: openai.url.origin,
+  LAKE_URL: lake.url.origin,
+  PROXY_LAKE_API_KEY: LAKE_API_KEY,
   DEPLOY_VERSION: VERSION,
 }
 
@@ -94,6 +119,8 @@ interface TestWorker {
   readonly url: string
   // How many calls reached the rate limit.
   readonly rateLimitCalls: () => number
+  // Until the work the requests so far left in the Background is done.
+  readonly settled: () => Promise<void>
   readonly stop: () => Promise<void>
 }
 
@@ -104,9 +131,15 @@ const startWorker = (options: { readonly withinRateLimit: boolean }): TestWorker
     rateLimitCalls++
     return options.withinRateLimit
   })
+  // Like ctx.waitUntil: the work runs on its own, with the caller's context, and the request doesn't wait for it.
+  const pending: Array<Promise<void>> = []
+  const background = Layer.succeed(
+    Background,
+    Background.of({ run: (effect) => Effect.flatMap(Effect.context(), (context) => Effect.sync(() => pending.push(Effect.runPromiseWith(context)(effect)))) })
+  )
   const { handler, dispose } = HttpRouter.toWebHandler(
     routes.pipe(
-      Layer.provide([rateLimitGuard(isWithinRateLimit), migratedSqlite, HttpServer.layerServices]),
+      Layer.provide([rateLimitGuard(isWithinRateLimit), background, migratedSqlite, HttpServer.layerServices]),
       Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(workerEnv)))
     ),
     { disableLogger: true }
@@ -115,6 +148,9 @@ const startWorker = (options: { readonly withinRateLimit: boolean }): TestWorker
   return {
     url: server.url.origin,
     rateLimitCalls: () => rateLimitCalls,
+    settled: async () => {
+      await Promise.all(pending)
+    },
     stop: async () => {
       await server.stop(true)
       await dispose()
@@ -143,6 +179,7 @@ afterAll(async () => {
   await worker.stop()
   await pushover.stop(true)
   await openai.stop(true)
+  await lake.stop(true)
 })
 
 test("/health answers the version with no key", async () => {
@@ -270,6 +307,46 @@ describe("ProxyClient.notify", () => {
     })
     expect(error._tag).toBe("ProxyError")
     expect(error.message).toContain("application token is invalid")
+  })
+
+  test("a push sent is recorded in Lake as push.sent, by the calling key's name, with the Worker's Lake key", async () => {
+    const key = await createKey(worker, "recorder", ["push"])
+    fakeLake.received = []
+    const before = Date.now()
+    await Effect.runPromise(notify(key, "deployed", { title: "ci" }))
+    await worker.settled()
+    expect(fakeLake.received).toEqual([
+      {
+        authorization: `Bearer ${LAKE_API_KEY}`,
+        event: { source: "proxy", type: "push.sent", occurred_at: expect.any(Number), subject: "recorder", data: { message: "deployed", title: "ci" } },
+      },
+    ])
+    expect(fakeLake.received[0]?.event.occurred_at).toBeGreaterThanOrEqual(before)
+  })
+
+  test("a push Pushover refuses, or a call refused, records nothing in Lake", async () => {
+    const key = await createKey(worker, "laptop", ["push"])
+    const painter = await createKey(worker, "painter", ["images"])
+    fakeLake.received = []
+    fakePushover.rejecting = true
+    const outcomes = await Promise.all([notifyOutcome(key), notifyOutcome(painter)]).finally(() => {
+      fakePushover.rejecting = false
+    })
+    await worker.settled()
+    expect(outcomes).toEqual(["ProxyError", "Forbidden"])
+    expect(fakeLake.received).toEqual([])
+  })
+
+  test("Lake down doesn't fail the push", async () => {
+    const key = await createKey(worker, "laptop", ["push"])
+    fakeLake.down = true
+    fakePushover.received = []
+    const pushed = await notifyOutcome(key)
+    await worker.settled().finally(() => {
+      fakeLake.down = false
+    })
+    expect(pushed).toBe("ok")
+    expect(fakePushover.received.map(({ message }) => message)).toEqual(["hi"])
   })
 
   test("an unreachable Worker is a ProxyError", async () => {

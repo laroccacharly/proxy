@@ -21,9 +21,10 @@
   "dependencies": {
     "@effect/platform-bun": "4.1.2",
     "@effect/sql-d1": "4.1.2",
-    "api-key-auth": "github:laroccacharly/api-key-auth#v0.4.0",
+    "api-key-auth": "github:laroccacharly/api-key-auth#v0.5.0",
     "effect": "4.1.2",
-    "effect-lib": "github:laroccacharly/effect-lib#v0.30.0"
+    "effect-lib": "github:laroccacharly/effect-lib#v0.31.0",
+    "lake-client": "https://lake.laroccadev.com/client/lake-client-0.1.1.tgz"
   },
   "devDependencies": {
     "@alchemy.run/cloudflare": "2.0.0-beta.85",

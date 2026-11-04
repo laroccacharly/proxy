@@ -17,5 +17,11 @@ export const ProxyAdminApiKey = Credentials.secret("PROXY_ADMIN_API_KEY", { labe
 // One consumer's key, from `proxy keys create`: PROXY_API_KEY, else the OS keyring. It calls the upstream apis only.
 export const ProxyApiKey = Credentials.secret("PROXY_API_KEY", { label: "proxy API key", schema: Schema.String.check(Schema.isStartingWith("pxy_")) })
 
+// Where Lake, the event store each push is recorded in, is reached.
+export const LakeUrl = Credentials.secret("LAKE_URL", { label: "lake Worker URL", schema: Origin, sensitive: false })
+
+// The Worker's write-only Lake key; not LAKE_API_KEY, the owner's key in the same keyring.
+export const ProxyLakeApiKey = Credentials.secret("PROXY_LAKE_API_KEY", { label: "proxy's lake API key", schema: Schema.String.check(Schema.isStartingWith("lake_")) })
+
 // `proxy login` and `proxy auth login | logout | status`, on a consumer machine.
 export const consumerCredentials = Credentials.make([ProxyUrl, ProxyApiKey])

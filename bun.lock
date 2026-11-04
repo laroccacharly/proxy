@@ -7,9 +7,10 @@
       "dependencies": {
         "@effect/platform-bun": "4.1.2",
         "@effect/sql-d1": "4.1.2",
-        "api-key-auth": "github:laroccacharly/api-key-auth#v0.4.0",
+        "api-key-auth": "github:laroccacharly/api-key-auth#v0.5.0",
         "effect": "4.1.2",
-        "effect-lib": "github:laroccacharly/effect-lib#v0.30.0",
+        "effect-lib": "github:laroccacharly/effect-lib#v0.31.0",
+        "lake-client": "https://lake.laroccadev.com/client/lake-client-0.1.1.tgz",
       },
       "devDependencies": {
         "@alchemy.run/cloudflare": "2.0.0-beta.85",
@@ -301,7 +302,7 @@
 
     "ansi-styles": ["ansi-styles@6.2.3", "", {}, "sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg=="],
 
-    "api-key-auth": ["api-key-auth@github:laroccacharly/api-key-auth#487d8a5", { "peerDependencies": { "effect": "^4.1.2" } }, "laroccacharly-api-key-auth-487d8a5", "sha512-4OHdxS+F+XtPE14GBgSupHvnQ6ACScyK3DYjSNEbu4o6J7AbykuYELrliR1M5/2rV6IttQ0J2lVSnapPv0u32A=="],
+    "api-key-auth": ["api-key-auth@github:laroccacharly/api-key-auth#1666884", { "peerDependencies": { "effect": "^4.1.2" } }, "laroccacharly-api-key-auth-1666884", "sha512-1fecLfqRsW0NrcfFVT06lHRxYKcnW/wnGZVaf5GA/yM5UKyAsH3Mco3o18n6P/TBANrYDLLLIAQT2L2PLizHKg=="],
 
     "bun-types": ["bun-types@1.4.4", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ=="],
 
@@ -317,7 +318,7 @@
 
     "effect": ["effect@4.1.2", "", {}, "sha512-d3Oah1WyKxFLFh19yWheS5IXIVaITzxZ71JkE1rkUozq/6EcJSU5nPk5bF2QrSygZ3SQoiNQB8TsxFriyMeMaQ=="],
 
-    "effect-lib": ["effect-lib@github:laroccacharly/effect-lib#97e8ca5", { "peerDependencies": { "@effect/platform-bun": "^4.1.0", "effect": "^4.1.0" }, "bin": { "elib": "./src/cli.ts" } }, "laroccacharly-effect-lib-97e8ca5", "sha512-D33lbWxnDdzsQZBfIEpRICLLle3Nfo+NIv206s67ujPZCgmxnXvP1Rr8tCY1TfPx/sDiML/hFDdb145oNLjYPw=="],
+    "effect-lib": ["effect-lib@github:laroccacharly/effect-lib#f8ee80c", { "peerDependencies": { "@effect/platform-bun": "^4.1.0", "effect": "^4.1.0" }, "bin": { "elib": "./src/cli.ts" } }, "laroccacharly-effect-lib-f8ee80c", "sha512-XPB3fiSVRVa1rnJNfu9IzweYzN4kpgZ6MlEGk6VvaNEAm25aM07hkkrjyDKb30mh07qIJSCD5mZKt5astvpoaA=="],
 
     "emoji-regex": ["emoji-regex@10.6.0", "", {}, "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A=="],
 
@@ -330,6 +331,8 @@
     "get-caller-file": ["get-caller-file@2.0.5", "", {}, "sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg=="],
 
     "get-east-asian-width": ["get-east-asian-width@1.7.0", "", {}, "sha512-XjH1AECxf0giL2V1aU8vKyRR2ppRUb5c0EvT7zuJTokQ74bNo52zOtghqdWIqrhUD79fo3x0WfKZdOqxF6LG1Q=="],
+
+    "lake-client": ["lake-client@https://lake.laroccadev.com/client/lake-client-0.1.1.tgz", { "dependencies": { "api-key-auth": "github:laroccacharly/api-key-auth#v0.5.0" }, "peerDependencies": { "effect": "^4.1.2" } }, "sha512-CyaLCciOPdkk72R1vlRCtcLrTIcjgFzpZxfgvBSNEkplClCD4+zUEnvfyF5dCGsANTxD/W9eL7XbBFqg+Tu4Cw=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 

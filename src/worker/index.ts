@@ -2,10 +2,11 @@ import * as Cloudflare from "@alchemy.run/cloudflare"
 import type { RateLimit } from "@cloudflare/workers-types"
 import { D1Client } from "@effect/sql-d1"
 import { ALCHEMY_DEV } from "alchemy"
+import type { RuntimeContext } from "alchemy/RuntimeContext"
 import { Config, Effect, Layer, Option } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import * as Deploy from "effect-lib/deploy"
-import { rateLimitGuard, respondToFailures, routes } from "./http.ts"
+import { Background, rateLimitGuard, respondToFailures, routes } from "./http.ts"
 
 // `true` skips the rate limit. Set only under `alchemy dev`.
 const rateLimiterDisabled = Config.String("DISABLE_RATE_LIMITER").pipe(
@@ -25,13 +26,15 @@ const devEnv = (isDev: boolean): Record<string, string> => {
 const optionalEnv = (name: string) =>
   Config.option(Config.String(name)).pipe(Config.map(Option.match({ onNone: () => ({}), onSome: (value) => ({ [name]: value }) })))
 
-// The upstreams' secrets, from the environment, required under `alchemy dev` too. PUSH_ORIGIN and OPENAI_ORIGIN are
+// The upstreams' secrets and Lake's, from the environment, required under `alchemy dev` too. PUSH_ORIGIN and OPENAI_ORIGIN are
 // optional: the tests point them at a fake Pushover and a fake OpenAI.
 const secretsEnv = Effect.gen(function* secretsEnv() {
   return {
     PUSH_APP_TOKEN: yield* Config.Redacted("PUSH_APP_TOKEN"),
     PUSH_USER_KEY: yield* Config.Redacted("PUSH_USER_KEY"),
     OPENAI_API_KEY: yield* Config.Redacted("OPENAI_API_KEY"),
+    LAKE_URL: yield* Config.String("LAKE_URL"),
+    PROXY_LAKE_API_KEY: yield* Config.Redacted("PROXY_LAKE_API_KEY"),
     ...(yield* optionalEnv("PUSH_ORIGIN")),
     ...(yield* optionalEnv("OPENAI_ORIGIN")),
   }
@@ -99,8 +102,13 @@ export default class Worker extends Cloudflare.Worker<Worker>()(
     // Built for each request: the bindings are only reachable inside one.
     const handleFetch = Effect.gen(function* handleFetch() {
       const sql = D1Client.layer({ db: yield* db.raw })
+      // This request's own, which waitUntil needs.
+      const executionContext = yield* Cloudflare.WorkerExecutionContext
+      const runtime = yield* Effect.context<RuntimeContext>()
       const guard = rateLimitGuard(rateLimitCheck(yield* limiter.raw, yield* rateLimiterDisabled))
-      const handle = yield* HttpRouter.toHttpEffect(routes.pipe(Layer.provide([guard, sql, HttpServer.layerServices])))
+      // This request's ctx.waitUntil.
+      const background = Layer.succeed(Background, Background.of({ run: (effect) => executionContext.waitUntil(effect).pipe(Effect.provide(runtime)) }))
+      const handle = yield* HttpRouter.toHttpEffect(routes.pipe(Layer.provide([guard, background, sql, HttpServer.layerServices])))
       return yield* respondToFailures(handle)
     })
     return { fetch: handleFetch.pipe(Effect.orDie) }

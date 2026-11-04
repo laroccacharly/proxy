@@ -12,11 +12,13 @@ import { version } from "../version.ts"
 // A missing or invalid secret, said in one line like the command's own failures.
 const toKeysCommandError = (error: { readonly message: string }) => new KeysCommandError({ message: error.message })
 
-// `proxy keys create | list | revoke` on the Worker at PROXY_URL with PROXY_ADMIN_API_KEY, and `proxy keys migrations`.
+// `proxy keys create | list | revoke | delete` on the Worker at PROXY_URL with PROXY_ADMIN_API_KEY, and `proxy keys migrations`.
+// `create --keyring NAME` saves the key in the OS keyring effect-lib apps share, instead of printing it.
 const keys = keysCommand({
   api: ProxyApi,
   url: ProxyUrl.resolve.pipe(Effect.map(Redacted.value), Effect.mapError(toKeysCommandError)),
   adminKey: ProxyAdminApiKey.resolve.pipe(Effect.mapError(toKeysCommandError)),
+  keyring: Credentials.bunKeyring(),
 })
 
 const proxy = Command.make("proxy").pipe(
