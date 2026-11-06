@@ -5,7 +5,7 @@ import { Effect, Layer, Redacted } from "effect"
 import { Command } from "effect/cli"
 import * as CloudflareDns from "effect-lib/cloudflare-dns"
 import * as Credentials from "effect-lib/credentials"
-import { ProxyApi } from "../api.ts"
+import { ProxyApi } from "../../client/api.ts"
 import { consumerCredentials, ProxyAdminApiKey, ProxyUrl } from "../credentials.ts"
 import { version } from "../version.ts"
 

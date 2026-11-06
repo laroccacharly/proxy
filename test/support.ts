@@ -6,7 +6,7 @@ import { ApiKeyAuth } from "api-key-auth"
 import { Effect, Layer, Redacted } from "effect"
 import { FetchHttpClient, type HttpClient } from "effect/http"
 import { HttpApiClient } from "effect/http-api"
-import { ProxyApi } from "../src/api.ts"
+import { ProxyApi } from "../client/api.ts"
 
 export const projectRoot = join(import.meta.dir, "..")
 

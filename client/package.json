@@ -1,0 +1,21 @@
+{
+  "name": "proxy-client",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "api.ts",
+    "index.ts",
+    "url.ts"
+  ],
+  "exports": {
+    ".": "./index.ts",
+    "./api": "./api.ts"
+  },
+  "dependencies": {
+    "api-key-auth": "github:laroccacharly/api-key-auth#v0.5.0"
+  },
+  "peerDependencies": {
+    "effect": "^4.1.2"
+  }
+}

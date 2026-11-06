@@ -8,10 +8,11 @@
     "proxy": "./src/cli/index.ts"
   },
   "exports": {
-    "./client": "./src/client/index.ts"
+    "./client": "./client/index.ts"
   },
   "scripts": {
     "proxy": "bun ./src/cli/index.ts",
+    "pack:client": "bun ./src/deploy/pack-client.ts",
     "deploy": "bun ./src/deploy/deploy.ts",
     "test": "bun test",
     "test:live": "bun test --timeout 30000 ./test/live/worker.live.ts",

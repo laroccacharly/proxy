@@ -6,7 +6,7 @@ import * as Credentials from "effect-lib/credentials"
 import * as OpenAIImage from "effect-lib/openai-image"
 import * as Push from "effect-lib/push"
 import { LakeClient } from "lake-client"
-import { ProxyApi, ProxyError, RateLimited, RateLimitGuard } from "../api.ts"
+import { ProxyApi, ProxyError, RateLimited, RateLimitGuard } from "../../client/api.ts"
 
 // Refuses the call when `isWithinRateLimit` is false, before it reaches the handler.
 export const rateLimitGuard = (isWithinRateLimit: Effect.Effect<boolean>) =>

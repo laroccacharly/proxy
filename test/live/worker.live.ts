@@ -9,7 +9,7 @@ import { Effect, Redacted } from "effect"
 import * as CloudflareDns from "effect-lib/cloudflare-dns"
 import * as Credentials from "effect-lib/credentials"
 import * as Deploy from "effect-lib/deploy"
-import * as ProxyClient from "../../src/client/index.ts"
+import * as ProxyClient from "../../client/index.ts"
 import { ProxyAdminApiKey, ProxyUrl } from "../../src/credentials.ts"
 import { checkPush, clientOf, runKeys, runnersOver } from "../support.ts"
 

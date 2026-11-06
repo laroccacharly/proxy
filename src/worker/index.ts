@@ -84,6 +84,8 @@ export default class Worker extends Cloudflare.Worker<Worker>()(
         strictPort: true,
       },
       ...domainOf(proxyUrl),
+      // `bun run pack:client` puts proxy-client's tarball here; requests for it are served before the Worker runs.
+      assets: "./dist/assets",
       env: {
         ...devEnv(yield* ALCHEMY_DEV),
         ...(yield* secretsEnv),

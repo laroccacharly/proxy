@@ -10,7 +10,7 @@ import { ConfigProvider, Effect, Layer } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { SqlClient } from "effect/sql"
 import type { NewEvent } from "lake-client"
-import { ProxyClient } from "../src/client/index.ts"
+import { ProxyClient } from "../client/index.ts"
 import { Background, rateLimitGuard, routes } from "../src/worker/http.ts"
 import { checkPush as checkPushAt, clientOf as clientAt, outcome, projectRoot, run, runKeys as runSupportKeys } from "./support.ts"
 
@@ -347,6 +347,18 @@ describe("ProxyClient.notify", () => {
     })
     expect(pushed).toBe("ok")
     expect(fakePushover.received.map(({ message }) => message)).toEqual(["hi"])
+  })
+
+  test("with no url, no PROXY_URL and none built in, the client fails with a ProxyError naming PROXY_URL", async () => {
+    const error = await Effect.runPromise(
+      Effect.flip(
+        ProxyClient.use((client) => client.notify("hi")).pipe(
+          Effect.provide(ProxyClient.layer({ apiKey: "pxy_x" }).pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({})))))
+        )
+      )
+    )
+    expect(error._tag).toBe("ProxyError")
+    expect(error.message).toContain("PROXY_URL")
   })
 
   test("an unreachable Worker is a ProxyError", async () => {
