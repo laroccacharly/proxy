@@ -16,7 +16,8 @@
     "test": "bun test",
     "test:live": "bun test --timeout 30000 ./test/live/worker.live.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint . && ts-lint-effect"
+    "lint": "oxlint . && ts-lint-effect",
+    "release": "git add -A && git commit -m v$npm_package_version && git tag v$npm_package_version && git push origin master v$npm_package_version"
   },
   "dependencies": {
     "@effect/platform-bun": "4.1.2",
