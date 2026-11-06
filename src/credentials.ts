@@ -8,13 +8,13 @@ const Origin = Schema.String.check(
   })
 )
 
-// Where the Worker is reached: PROXY_URL, else the OS keyring.
+// Where the Worker is reached: PROXY_URL, else the vault, then the OS keyring.
 export const ProxyUrl = Credentials.secret("PROXY_URL", { label: "proxy Worker URL", schema: Origin, sensitive: false })
 
 // Creates, lists and revokes the consumer keys; it calls no upstream api.
 export const ProxyAdminApiKey = Credentials.secret("PROXY_ADMIN_API_KEY", { label: "proxy admin API key" })
 
-// One consumer's key, from `proxy keys create`: PROXY_API_KEY, else the OS keyring. It calls the upstream apis only.
+// One consumer's key, from `proxy keys create`: PROXY_API_KEY, else the vault, then the OS keyring. It calls the upstream apis only.
 export const ProxyApiKey = Credentials.secret("PROXY_API_KEY", { label: "proxy API key", schema: Schema.String.check(Schema.isStartingWith("pxy_")) })
 
 // Where Lake, the event store each push is recorded in, is reached.

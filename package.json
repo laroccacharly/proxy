@@ -25,7 +25,7 @@
     "@effect/sql-d1": "4.1.2",
     "api-key-auth": "github:laroccacharly/api-key-auth#v0.5.0",
     "effect": "4.1.2",
-    "effect-lib": "github:laroccacharly/effect-lib#v0.31.0",
+    "effect-lib": "github:laroccacharly/effect-lib#v0.37.0",
     "lake-client": "https://lake.laroccadev.com/client/lake-client-0.1.1.tgz"
   },
   "devDependencies": {

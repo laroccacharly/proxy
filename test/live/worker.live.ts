@@ -1,4 +1,4 @@
-// The running Worker at PROXY_URL, with PROXY_ADMIN_API_KEY: the environment first, then the OS keyring, as
+// The running Worker at PROXY_URL, with PROXY_ADMIN_API_KEY: the environment first, then the vault and the OS keyring, as
 // `proxy keys` reads them. Run with `bun run test:live`, never by `bun test`: it sends one real Pushover notification.
 // Its keys are named live-<time> and deleted afterwards. The rate limit is left alone: it is shared by every consumer.
 // Its calls resolve the Worker through Cloudflare DNS, as `proxy keys` does: right after a deploy that creates the domain,
@@ -18,7 +18,7 @@ const { run, outcome } = runnersOver(CloudflareDns.layer())
 const { url, adminKey } = await Effect.runPromise(
   Effect.gen(function* liveCredentials() {
     return { url: Redacted.value(yield* ProxyUrl.resolve), adminKey: Redacted.value(yield* ProxyAdminApiKey.resolve) }
-  }).pipe(Effect.provide(Credentials.layer(Credentials.bunKeyring())))
+  }).pipe(Effect.provide(Credentials.layer(Credentials.defaultKeyring())))
 )
 
 // What `bun run deploy` gave the Worker as DEPLOY_VERSION, when it deployed this checkout.

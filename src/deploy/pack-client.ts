@@ -36,7 +36,7 @@ const main = Effect.gen(function* main() {
   const url = Redacted.value(yield* ProxyUrl.resolve)
   yield* packClient(url, assetsDir)
   yield* Effect.log(`proxy-client packed into ${assetsDir}, for ${url}`)
-}).pipe(Effect.provide(Credentials.layer(Credentials.bunKeyring())))
+}).pipe(Effect.provide(Credentials.layer(Credentials.defaultKeyring())))
 
 if (import.meta.main) {
   BunRuntime.runMain(main)

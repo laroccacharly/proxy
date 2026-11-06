@@ -13,12 +13,12 @@ import { version } from "../version.ts"
 const toKeysCommandError = (error: { readonly message: string }) => new KeysCommandError({ message: error.message })
 
 // `proxy keys create | list | revoke | delete` on the Worker at PROXY_URL with PROXY_ADMIN_API_KEY, and `proxy keys migrations`.
-// `create --keyring NAME` saves the key in the OS keyring effect-lib apps share, instead of printing it.
+// `create --keyring NAME` saves the key in the OS keyring effect-lib apps share, instead of printing it; `passkey-auth vault move NAME` then takes it into the vault.
 const keys = keysCommand({
   api: ProxyApi,
   url: ProxyUrl.resolve.pipe(Effect.map(Redacted.value), Effect.mapError(toKeysCommandError)),
   adminKey: ProxyAdminApiKey.resolve.pipe(Effect.mapError(toKeysCommandError)),
-  keyring: Credentials.bunKeyring(),
+  keyring: Credentials.defaultKeyring(),
 })
 
 const proxy = Command.make("proxy").pipe(
@@ -27,6 +27,6 @@ const proxy = Command.make("proxy").pipe(
 )
 
 // The Worker resolves through Cloudflare DNS, so `proxy keys` reaches a domain the deploy just created.
-const MainLive = Layer.mergeAll(BunServices.layer, CloudflareDns.layer(), consumerCredentials.layer(Credentials.bunKeyring()))
+const MainLive = Layer.mergeAll(BunServices.layer, CloudflareDns.layer(), consumerCredentials.layer(Credentials.defaultKeyring()))
 
 BunRuntime.runMain(Command.run(proxy, { version }).pipe(Effect.provide(MainLive)))
